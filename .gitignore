@@ -28,3 +28,8 @@ blob-report/
 
 packages/db/prisma/migrations/**/migration_lock.toml.bak
 /tmp/
+
+# Claude Code local config. Machine-specific, not shared.
+# A team-wide .claude/settings.json can still be committed if you ever want one.
+.claude/launch.json
+.claude/settings.local.json
