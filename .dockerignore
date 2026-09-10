@@ -1,0 +1,14 @@
+node_modules
+**/node_modules
+.next
+**/.next
+dist
+**/dist
+.git
+.env
+.env.local
+coverage
+playwright-report
+test-results
+*.log
+tsconfig.check.json

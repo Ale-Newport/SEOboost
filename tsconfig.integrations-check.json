@@ -1,0 +1,15 @@
+{
+  "extends": "/Users/alejandro/Projects/SEO/tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": "/Users/alejandro/Projects/SEO",
+    "noEmit": true,
+    "types": ["node"],
+    "paths": {
+      "@seo/shared": ["./packages/shared/src/index.ts"],
+      "@seo/shared/*": ["./packages/shared/src/*"],
+      "@seo/db": ["./packages/db/src/index.ts"],
+      "@seo/db/*": ["./packages/db/src/*"]
+    }
+  },
+  "include": ["/Users/alejandro/Projects/SEO/packages/integrations/src/**/*.ts"]
+}

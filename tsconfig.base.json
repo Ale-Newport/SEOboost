@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "allowJs": false,
+    "strict": true,
+    "noUncheckedIndexedAccess": false,
+    "noImplicitOverride": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": false,
+    "declaration": false,
+    "sourceMap": true,
+    "noEmit": true,
+    "types": ["node"],
+    "paths": {
+      "@seo/shared": ["./packages/shared/src/index.ts"],
+      "@seo/shared/*": ["./packages/shared/src/*"],
+      "@seo/db": ["./packages/db/src/index.ts"],
+      "@seo/db/*": ["./packages/db/src/*"],
+      "@seo/ai": ["./packages/ai/src/index.ts"],
+      "@seo/ai/*": ["./packages/ai/src/*"],
+      "@seo/crawler": ["./packages/crawler/src/index.ts"],
+      "@seo/crawler/*": ["./packages/crawler/src/*"],
+      "@seo/seo-engine": ["./packages/seo-engine/src/index.ts"],
+      "@seo/seo-engine/*": ["./packages/seo-engine/src/*"],
+      "@seo/integrations": ["./packages/integrations/src/index.ts"],
+      "@seo/integrations/*": ["./packages/integrations/src/*"],
+      "@seo/agents": ["./packages/agents/src/index.ts"],
+      "@seo/agents/*": ["./packages/agents/src/*"],
+      "@seo/queue": ["./packages/queue/src/index.ts"],
+      "@seo/queue/*": ["./packages/queue/src/*"]
+    }
+  },
+  "exclude": ["node_modules", "dist", ".next"]
+}

@@ -1,0 +1,46 @@
+{
+  "name": "seo-os",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI-powered SEO + GEO operating system for multi-site portfolio management",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "scripts": {
+    "dev": "concurrently -n web,worker -c cyan,magenta \"npm:dev:web\" \"npm:dev:worker\"",
+    "dev:web": "npm run dev --workspace @seo/web",
+    "dev:worker": "npm run dev --workspace @seo/worker",
+    "build": "npm run db:generate && npm run build --workspace @seo/web",
+    "start": "npm run start --workspace @seo/web",
+    "start:worker": "npm run start --workspace @seo/worker",
+    "db:generate": "prisma generate --schema packages/db/prisma/schema.prisma",
+    "db:migrate": "prisma migrate deploy --schema packages/db/prisma/schema.prisma",
+    "db:migrate:dev": "prisma migrate dev --schema packages/db/prisma/schema.prisma",
+    "db:push": "prisma db push --schema packages/db/prisma/schema.prisma",
+    "db:studio": "prisma studio --schema packages/db/prisma/schema.prisma",
+    "db:seed": "tsx packages/db/src/seed.ts",
+    "db:reset": "prisma migrate reset --force --schema packages/db/prisma/schema.prisma",
+    "typecheck": "npm run typecheck --workspace @seo/web && npm run typecheck --workspace @seo/worker",
+    "lint": "next lint --dir apps/web/src",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "verify": "npm run db:generate && npm run typecheck && npm run typecheck:packages && npm run test && npm run build",
+    "setup": "bash scripts/setup.sh",
+    "smoke:crawl": "tsx scripts/smoke-crawl.mts",
+    "typecheck:packages": "tsc -p tsconfig.check.json"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/node": "22.10.5",
+    "concurrently": "9.1.2",
+    "prisma": "6.19.3",
+    "tsx": "4.23.13",
+    "typescript": "5.9.3",
+    "vitest": "3.2.7"
+  }
+}

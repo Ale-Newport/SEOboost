@@ -1,0 +1,1969 @@
+// SEO OS — database schema
+// Postgres. Vectors are stored as native float arrays (exact cosine search in-app);
+// see docs/adr/0003-embeddings.md for the pgvector upgrade path.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = []
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Auth & users
+// ─────────────────────────────────────────────────────────────
+
+enum UserRole {
+  OWNER
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String?
+  passwordHash String
+  role         UserRole  @default(OWNER)
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  sessions      Session[]
+  websites      Website[]
+  approvals     Approval[]
+  notifications Notification[]
+  changeLogs    ChangeLog[]
+
+  @@index([email])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  userAgent String?
+  ip        String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Websites
+// ─────────────────────────────────────────────────────────────
+
+enum WebsiteStatus {
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum CmsType {
+  UNKNOWN
+  WORDPRESS
+  SHOPIFY
+  WEBFLOW
+  NEXTJS
+  ASTRO
+  HUGO
+  GHOST
+  SQUARESPACE
+  WIX
+  CUSTOM
+  GIT
+}
+
+/// Autonomy: how much the platform may do without a human in the loop.
+enum AutonomyLevel {
+  L0_INSIGHTS_ONLY
+  L1_DRAFTS_ONLY
+  L2_SAFE_TECHNICAL
+  L3_MOST_REVERSIBLE
+  L4_HIGH_AUTONOMY
+}
+
+model Website {
+  id             String        @id @default(cuid())
+  userId         String
+  name           String
+  domain         String
+  protocol       String        @default("https")
+  status         WebsiteStatus @default(ACTIVE)
+  description    String?
+  businessCategory String?
+  targetAudience String?
+  conversionGoal String?
+  brandName      String?
+  cmsType        CmsType       @default(UNKNOWN)
+  primaryLanguage String       @default("en")
+  targetLocales  String[]      @default(["en-US"])
+  targetCountry  String        @default("USA")
+  faviconUrl     String?
+  isDemo         Boolean       @default(false)
+
+  // rolled-up scores, recomputed by the analysis pipeline
+  healthScore    Float?
+  geoScore       Float?
+  aiVisibilityScore Float?
+  contentScore   Float?
+  lastCrawlAt    DateTime?
+  lastAnalysisAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  settings           WebsiteSettings?
+  knowledgeBase      KnowledgeBase?
+  integrations       Integration[]
+  crawls             Crawl[]
+  pages              Page[]
+  keywords           Keyword[]
+  keywordClusters    KeywordCluster[]
+  competitors        Competitor[]
+  technicalIssues    TechnicalIssue[]
+  searchConsoleDaily SearchConsoleDaily[]
+  gscQueryMetrics    GscQueryMetric[]
+  contentOpportunities ContentOpportunity[]
+  contentBriefs      ContentBrief[]
+  contentDrafts      ContentDraft[]
+  internalLinkSuggestions InternalLinkSuggestion[]
+  structuredDataItems StructuredDataItem[]
+  entities           Entity[]
+  backlinks          Backlink[]
+  aiPrompts          AiVisibilityPrompt[]
+  aiRuns             AiVisibilityRun[]
+  geoAudits          GeoAudit[]
+  seoActions         SeoAction[]
+  approvals          Approval[]
+  experiments        Experiment[]
+  agentRuns          AgentRun[]
+  aiUsage            AiUsage[]
+  notifications      Notification[]
+  reports            Report[]
+  jobs               JobRecord[]
+  changeLogs         ChangeLog[]
+  scheduledJobs      ScheduledJob[]
+  scoreSnapshots     ScoreSnapshot[]
+  brandFacts         BrandFact[]
+  serpSnapshots      SerpSnapshot[]
+  rankings           Ranking[]
+  strategyPlans      StrategyPlan[]
+
+  @@unique([userId, domain])
+  @@index([userId, status])
+  @@index([domain])
+}
+
+model WebsiteSettings {
+  id        String  @id @default(cuid())
+  websiteId String  @unique
+
+  // crawler
+  crawlMaxPages       Int     @default(1000)
+  crawlMaxDepth       Int     @default(10)
+  crawlConcurrency    Int     @default(4)
+  crawlDelayMs        Int     @default(250)
+  crawlUserAgent      String  @default("SEO-OS-Bot/1.0 (+https://github.com/seo-os)")
+  crawlRespectRobots  Boolean @default(true)
+  crawlRenderJs       Boolean @default(false)
+  crawlIncludePatterns String[] @default([])
+  crawlExcludePatterns String[] @default([])
+  crawlTimeoutMs      Int     @default(20000)
+
+  // automation
+  autonomyLevel   AutonomyLevel @default(L1_DRAFTS_ONLY)
+  autoApproveSafe Boolean       @default(false)
+
+  // AI model routing (null → global default)
+  reasoningModel String?
+  fastModel      String?
+  writingModel   String?
+  embeddingModel String?
+  aiProvider     String?
+
+  // budgets
+  monthlyAiBudgetUsd Float?
+
+  // schedules (cron expressions, null → disabled)
+  scheduleCrawl        String? @default("0 3 * * 1")
+  scheduleGscSync      String? @default("0 5 * * *")
+  scheduleAnalysis     String? @default("0 6 * * *")
+  scheduleAiVisibility String? @default("0 7 * * 1")
+  scheduleReport       String? @default("0 8 * * 1")
+
+  // thresholds
+  thinContentWords    Int   @default(300)
+  ctrOpportunityMinImpressions Int @default(100)
+  strikingDistanceMin Float @default(8)
+  strikingDistanceMax Float @default(20)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  website Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+}
+
+/// Per-site knowledge the content agents are allowed to rely on.
+model KnowledgeBase {
+  id        String @id @default(cuid())
+  websiteId String @unique
+
+  businessDescription String?
+  products            Json?    @default("[]")
+  audience            String?
+  toneOfVoice         String?
+  brandStyle          String?
+  terminology         Json?    @default("[]")
+  preferredCta        String?
+  prohibitedClaims    String[] @default([])
+  writingGuidelines   String?
+  uniqueValueProps    String[] @default([])
+  authorBios          Json?    @default("[]")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  website Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+}
+
+/// Verified first-party facts. AI writers may only assert facts marked verified.
+model BrandFact {
+  id        String  @id @default(cuid())
+  websiteId String
+  fact      String
+  category  String?
+  source    String  @default("internal")
+  sourceUrl String?
+  verified  Boolean @default(false)
+  verifiedAt DateTime?
+  expiresAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  website Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  @@index([websiteId, verified])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Integrations
+// ─────────────────────────────────────────────────────────────
+
+enum IntegrationProvider {
+  GOOGLE_SEARCH_CONSOLE
+  GOOGLE_ANALYTICS_4
+  BING_WEBMASTER
+  WORDPRESS
+  GIT
+  WEBHOOK
+  SHOPIFY
+  WEBFLOW
+}
+
+enum IntegrationStatus {
+  NOT_CONFIGURED
+  CONNECTED
+  ERROR
+  EXPIRED
+  DISABLED
+}
+
+model Integration {
+  id        String              @id @default(cuid())
+  websiteId String
+  provider  IntegrationProvider
+  status    IntegrationStatus   @default(NOT_CONFIGURED)
+
+  /// AES-256-GCM encrypted JSON credential envelope. Never returned to the client.
+  credentials    String?
+  /// Non-secret configuration (property URL, site id, branch, base path…).
+  config         Json?    @default("{}")
+  accountEmail   String?
+  externalId     String?
+  lastSyncAt     DateTime?
+  lastSyncStatus String?
+  lastError      String?
+  expiresAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  website Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  @@unique([websiteId, provider])
+  @@index([provider, status])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Crawling
+// ─────────────────────────────────────────────────────────────
+
+enum CrawlStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model Crawl {
+  id        String      @id @default(cuid())
+  websiteId String
+  status    CrawlStatus @default(QUEUED)
+  trigger   String      @default("manual")
+
+  maxPages    Int
+  maxDepth    Int
+  renderJs    Boolean @default(false)
+  userAgent   String?
+
+  pagesDiscovered Int @default(0)
+  pagesCrawled    Int @default(0)
+  pagesFailed     Int @default(0)
+  issuesFound     Int @default(0)
+
+  robotsTxtFound  Boolean @default(false)
+  robotsTxtBody   String?
+  sitemapUrls     String[] @default([])
+  sitemapUrlCount Int      @default(0)
+
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  durationMs  Int?
+  error       String?
+  progressMessage String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  website     Website          @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  crawlPages  CrawlPage[]
+  issues      TechnicalIssue[]
+
+  @@index([websiteId, createdAt])
+  @@index([status])
+}
+
+/// One row per URL fetched during a crawl (an immutable snapshot).
+model CrawlPage {
+  id      String @id @default(cuid())
+  crawlId String
+  pageId  String?
+
+  url             String
+  normalizedUrl   String
+  statusCode      Int?
+  contentType     String?
+  redirectTarget  String?
+  redirectChain   String[] @default([])
+  depth           Int      @default(0)
+  responseTimeMs  Int?
+  contentBytes    Int?
+  error           String?
+
+  title           String?
+  titleLength     Int?
+  metaDescription String?
+  metaDescriptionLength Int?
+  canonicalUrl    String?
+  robotsMeta      String?
+  xRobotsTag      String?
+  metaViewport    String?
+  lang            String?
+  h1              String[] @default([])
+  headings        Json?    @default("[]")
+  wordCount       Int      @default(0)
+  textContent     String?
+  contentHash     String?
+  simhash         String?
+
+  internalLinkCount Int @default(0)
+  externalLinkCount Int @default(0)
+  imageCount        Int @default(0)
+  imagesMissingAlt  Int @default(0)
+  schemaTypes       String[] @default([])
+  structuredData    Json?    @default("[]")
+  hreflang          Json?    @default("[]")
+  openGraph         Json?    @default("{}")
+
+  isIndexable       Boolean @default(true)
+  indexabilityReason String?
+  inSitemap         Boolean @default(false)
+
+  crawledAt DateTime @default(now())
+
+  crawl Crawl @relation(fields: [crawlId], references: [id], onDelete: Cascade)
+  page  Page? @relation(fields: [pageId], references: [id], onDelete: SetNull)
+
+  outgoingLinks LinkEdge[] @relation("SourceCrawlPage")
+
+  @@unique([crawlId, normalizedUrl])
+  @@index([crawlId, statusCode])
+  @@index([pageId])
+  @@index([contentHash])
+}
+
+/// Directed link discovered during a crawl (internal or external).
+model LinkEdge {
+  id            String  @id @default(cuid())
+  crawlId       String
+  sourceCrawlPageId String
+  sourceUrl     String
+  targetUrl     String
+  normalizedTarget String
+  anchorText    String?
+  rel           String?
+  isInternal    Boolean @default(true)
+  isNofollow    Boolean @default(false)
+  inNav         Boolean @default(false)
+  inFooter      Boolean @default(false)
+  inMainContent Boolean @default(true)
+  position      Int     @default(0)
+
+  sourceCrawlPage CrawlPage @relation("SourceCrawlPage", fields: [sourceCrawlPageId], references: [id], onDelete: Cascade)
+
+  @@index([crawlId, normalizedTarget])
+  @@index([sourceCrawlPageId])
+  @@index([crawlId, isInternal])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Pages (the durable, cross-crawl view of a URL)
+// ─────────────────────────────────────────────────────────────
+
+enum PageType {
+  HOMEPAGE
+  ARTICLE
+  BLOG_INDEX
+  LANDING
+  PRODUCT
+  CATEGORY
+  COMPARISON
+  GLOSSARY
+  FAQ
+  ABOUT
+  CONTACT
+  LEGAL
+  AUTHOR
+  OTHER
+}
+
+model Page {
+  id        String @id @default(cuid())
+  websiteId String
+
+  url           String
+  normalizedUrl String
+  path          String
+  pageType      PageType @default(OTHER)
+
+  title           String?
+  metaDescription String?
+  h1              String?
+  canonicalUrl    String?
+  lang            String?
+  wordCount       Int      @default(0)
+  statusCode      Int?
+  depth           Int      @default(0)
+  isIndexable     Boolean  @default(true)
+  indexabilityReason String?
+  inSitemap       Boolean  @default(false)
+  contentHash     String?
+  schemaTypes     String[] @default([])
+
+  internalLinksIn  Int @default(0)
+  internalLinksOut Int @default(0)
+  externalLinksOut Int @default(0)
+  isOrphan         Boolean @default(false)
+
+  // rolling performance (denormalised from GSC for fast list views)
+  clicks28d       Int    @default(0)
+  impressions28d  Int    @default(0)
+  ctr28d          Float?
+  position28d     Float?
+  clicksPrev28d   Int    @default(0)
+  impressionsPrev28d Int @default(0)
+  positionPrev28d Float?
+  clicksTrendPct  Float?
+
+  seoScore        Float?
+  geoScore        Float?
+  opportunityScore Float?
+  contentScore    Float?
+  readabilityScore Float?
+
+  publishedAt   DateTime?
+  contentUpdatedAt DateTime?
+  firstSeenAt   DateTime @default(now())
+  lastCrawledAt DateTime?
+  lastAnalysedAt DateTime?
+  isActive      Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  website   Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  crawlPages     CrawlPage[]
+  snapshots      PageSnapshot[]
+  issues         TechnicalIssue[]
+  keywords       Keyword[]
+  gscMetrics     GscQueryMetric[]
+  rankings       Ranking[]
+  linkSuggestionsFrom InternalLinkSuggestion[] @relation("LinkSuggestionSource")
+  linkSuggestionsTo   InternalLinkSuggestion[] @relation("LinkSuggestionTarget")
+  structuredDataItems StructuredDataItem[]
+  contentDrafts  ContentDraft[]
+  contentOpportunities ContentOpportunity[]
+  embedding      EmbeddingRecord?
+  experiments    Experiment[]
+  geoPageAudits  GeoPageAudit[]
+
+  @@unique([websiteId, normalizedUrl])
+  @@index([websiteId, isActive])
+  @@index([websiteId, opportunityScore])
+  @@index([websiteId, isOrphan])
+  @@index([websiteId, pageType])
+}
+
+/// Historical snapshot of a page's content + metrics; powers diffs and experiments.
+model PageSnapshot {
+  id     String @id @default(cuid())
+  pageId String
+
+  title           String?
+  metaDescription String?
+  h1              String?
+  wordCount       Int     @default(0)
+  contentHash     String?
+  textContent     String?
+  headings        Json?   @default("[]")
+  statusCode      Int?
+  seoScore        Float?
+  geoScore        Float?
+  clicks28d       Int?
+  impressions28d  Int?
+  position28d     Float?
+  reason          String  @default("crawl")
+
+  capturedAt DateTime @default(now())
+
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([pageId, capturedAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Technical SEO
+// ─────────────────────────────────────────────────────────────
+
+enum IssueSeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+  INFO
+}
+
+enum IssueStatus {
+  OPEN
+  IGNORED
+  IN_PROGRESS
+  RESOLVED
+  REGRESSED
+}
+
+enum IssueCategory {
+  CRAWLABILITY
+  INDEXABILITY
+  METADATA
+  CONTENT
+  LINKS
+  ARCHITECTURE
+  STRUCTURED_DATA
+  PERFORMANCE
+  SECURITY
+  INTERNATIONAL
+  GEO
+}
+
+model TechnicalIssue {
+  id        String @id @default(cuid())
+  websiteId String
+  crawlId   String?
+  pageId    String?
+
+  ruleId      String
+  title       String
+  category    IssueCategory
+  severity    IssueSeverity
+  status      IssueStatus @default(OPEN)
+  url         String?
+  description String
+  recommendation String
+  evidence    Json?   @default("{}")
+  estimatedImpact Float @default(0)
+  confidence  Float   @default(0.8)
+  autoFixable Boolean @default(false)
+  weight      Float   @default(1)
+
+  /// Stable hash of (websiteId, ruleId, url) so re-crawls update instead of duplicating.
+  fingerprint String
+
+  discoveredAt DateTime @default(now())
+  lastSeenAt   DateTime @default(now())
+  resolvedAt   DateTime?
+  ignoredAt    DateTime?
+  ignoredReason String?
+
+  website Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  crawl   Crawl?  @relation(fields: [crawlId], references: [id], onDelete: SetNull)
+  page    Page?   @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@unique([websiteId, fingerprint])
+  @@index([websiteId, status, severity])
+  @@index([websiteId, category])
+  @@index([websiteId, ruleId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Search Console / analytics
+// ─────────────────────────────────────────────────────────────
+
+/// Site-level daily totals (fast dashboards).
+model SearchConsoleDaily {
+  id        String   @id @default(cuid())
+  websiteId String
+  date      DateTime @db.Date
+  source    String   @default("gsc")
+  clicks    Int      @default(0)
+  impressions Int    @default(0)
+  ctr       Float    @default(0)
+  position  Float    @default(0)
+  country   String?
+  device    String?
+
+  website Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  @@unique([websiteId, date, source, country, device])
+  @@index([websiteId, date])
+}
+
+/// Query × page × date rows imported from Search Console / Bing.
+model GscQueryMetric {
+  id        String   @id @default(cuid())
+  websiteId String
+  pageId    String?
+  keywordId String?
+
+  date        DateTime @db.Date
+  query       String
+  page        String
+  country     String?
+  device      String?
+  source      String   @default("gsc")
+  clicks      Int      @default(0)
+  impressions Int      @default(0)
+  ctr         Float    @default(0)
+  position    Float    @default(0)
+
+  website Website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  pageRef Page?    @relation(fields: [pageId], references: [id], onDelete: SetNull)
+  keyword Keyword? @relation(fields: [keywordId], references: [id], onDelete: SetNull)
+
+  @@unique([websiteId, date, query, page, source])
+  @@index([websiteId, date])
+  @@index([websiteId, query])
+  @@index([websiteId, pageId, date])
+  @@index([keywordId, date])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Keywords
+// ─────────────────────────────────────────────────────────────
+
+enum SearchIntent {
+  INFORMATIONAL
+  NAVIGATIONAL
+  COMMERCIAL
+  TRANSACTIONAL
+  LOCAL
+  UNKNOWN
+}
+
+enum FunnelStage {
+  AWARENESS
+  CONSIDERATION
+  DECISION
+  UNKNOWN
+}
+
+enum KeywordSource {
+  SEARCH_CONSOLE
+  BING
+  SITE_CONTENT
+  COMPETITOR
+  SERP_PROVIDER
+  AI_EXPANSION
+  MANUAL
+  CSV_IMPORT
+}
+
+model Keyword {
+  id        String @id @default(cuid())
+  websiteId String
+  clusterId String?
+  pageId    String?
+
+  keyword   String
+  normalized String
+  locale    String  @default("en-US")
+  language  String  @default("en")
+  country   String  @default("USA")
+
+  intent      SearchIntent @default(UNKNOWN)
+  funnelStage FunnelStage  @default(UNKNOWN)
+  source      KeywordSource @default(SEARCH_CONSOLE)
+  isTracked   Boolean      @default(false)
+  isBranded   Boolean      @default(false)
+
+  searchVolume     Int?
+  difficulty       Float?
+  cpc              Float?
+  competition      Float?
+  volumeSource     String?
+
+  currentPosition  Float?
+  bestPosition     Float?
+  previousPosition Float?
+  positionChange   Float?
+  rankingUrl       String?
+
+  clicks28d      Int   @default(0)
+  impressions28d Int   @default(0)
+  ctr28d         Float?
+  position28d    Float?
+
+  relevanceScore    Float?
+  businessValue     Float?
+  opportunityScore  Float?
+  opportunityReason String?
+  opportunityFactors Json? @default("{}")
+  geoPotential      Float?
+  isContentGap      Boolean @default(false)
+  hasCannibalization Boolean @default(false)
+
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  website Website         @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  cluster KeywordCluster? @relation(fields: [clusterId], references: [id], onDelete: SetNull)
+  page    Page?           @relation(fields: [pageId], references: [id], onDelete: SetNull)
+
+  metrics     KeywordMetric[]
+  rankings    Ranking[]
+  gscMetrics  GscQueryMetric[]
+  serpSnapshots SerpSnapshot[]
+  competitorKeywords CompetitorKeyword[]
+  opportunities ContentOpportunity[]
+  embedding   EmbeddingRecord?
+
+  @@unique([websiteId, normalized, locale])
+  @@index([websiteId, opportunityScore])
+  @@index([websiteId, clusterId])
+  @@index([websiteId, isContentGap])
+  @@index([websiteId, currentPosition])
+}
+
+model KeywordMetric {
+  id        String   @id @default(cuid())
+  keywordId String
+  date      DateTime @db.Date
+  searchVolume Int?
+  difficulty   Float?
+  cpc          Float?
+  clicks       Int?
+  impressions  Int?
+  ctr          Float?
+  position     Float?
+  source       String @default("gsc")
+
+  keyword Keyword @relation(fields: [keywordId], references: [id], onDelete: Cascade)
+
+  @@unique([keywordId, date, source])
+  @@index([keywordId, date])
+}
+
+model KeywordCluster {
+  id        String @id @default(cuid())
+  websiteId String
+
+  name        String
+  slug        String
+  description String?
+  parentTopic String?
+  pillarPageId String?
+  intent      SearchIntent @default(UNKNOWN)
+
+  keywordCount   Int   @default(0)
+  totalVolume    Int   @default(0)
+  totalImpressions Int @default(0)
+  totalClicks    Int   @default(0)
+  avgPosition    Float?
+  coverageScore  Float?
+  opportunityScore Float?
+  centroid       Float[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  website  Website   @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  keywords Keyword[]
+  opportunities ContentOpportunity[]
+
+  @@unique([websiteId, slug])
+  @@index([websiteId, opportunityScore])
+}
+
+/// Position history from SERP providers or GSC-derived positions.
+model Ranking {
+  id        String   @id @default(cuid())
+  websiteId String
+  keywordId String
+  pageId    String?
+
+  date     DateTime @db.Date
+  position Float
+  url      String?
+  source   String   @default("gsc")
+  device   String   @default("desktop")
+  country  String?
+  serpFeatures String[] @default([])
+
+  website Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  keyword Keyword @relation(fields: [keywordId], references: [id], onDelete: Cascade)
+  page    Page?   @relation(fields: [pageId], references: [id], onDelete: SetNull)
+
+  @@unique([keywordId, date, source, device])
+  @@index([websiteId, date])
+  @@index([keywordId, date])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Competitors & SERP
+// ─────────────────────────────────────────────────────────────
+
+model Competitor {
+  id        String @id @default(cuid())
+  websiteId String
+
+  domain      String
+  name        String?
+  isManual    Boolean @default(true)
+  isActive    Boolean @default(true)
+  notes       String?
+
+  sharedKeywords   Int   @default(0)
+  gapKeywords      Int   @default(0)
+  estimatedKeywords Int  @default(0)
+  serpOverlapPct   Float @default(0)
+  avgPosition      Float?
+  topicalStrengths String[] @default([])
+  contentVelocity  Float?
+  lastAnalysedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  website  Website             @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  keywords CompetitorKeyword[]
+  pages    CompetitorPage[]
+
+  @@unique([websiteId, domain])
+  @@index([websiteId, isActive])
+}
+
+model CompetitorKeyword {
+  id           String @id @default(cuid())
+  competitorId String
+  keywordId    String?
+
+  keyword       String
+  position      Float?
+  url           String?
+  ourPosition   Float?
+  isGap         Boolean @default(false)
+  gapScore      Float?
+  estimatedVolume Int?
+  observedAt    DateTime @default(now())
+
+  competitor Competitor @relation(fields: [competitorId], references: [id], onDelete: Cascade)
+  keywordRef Keyword?   @relation(fields: [keywordId], references: [id], onDelete: SetNull)
+
+  @@unique([competitorId, keyword])
+  @@index([competitorId, isGap])
+}
+
+model CompetitorPage {
+  id           String @id @default(cuid())
+  competitorId String
+  url          String
+  title        String?
+  estimatedTraffic Int?
+  keywordCount Int    @default(0)
+  topics       String[] @default([])
+  observedAt   DateTime @default(now())
+
+  competitor Competitor @relation(fields: [competitorId], references: [id], onDelete: Cascade)
+
+  @@unique([competitorId, url])
+}
+
+model SerpSnapshot {
+  id        String @id @default(cuid())
+  websiteId String
+  keywordId String?
+
+  query    String
+  locale   String   @default("en-US")
+  device   String   @default("desktop")
+  provider String
+  results  Json     @default("[]")
+  peopleAlsoAsk Json @default("[]")
+  relatedSearches String[] @default([])
+  featuredSnippet Json?
+  resultTypes  String[] @default([])
+  ourPosition  Float?
+  capturedAt   DateTime @default(now())
+
+  website Website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  keyword Keyword? @relation(fields: [keywordId], references: [id], onDelete: SetNull)
+
+  @@index([websiteId, query, capturedAt])
+  @@index([keywordId, capturedAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Content
+// ─────────────────────────────────────────────────────────────
+
+enum OpportunityType {
+  IMPROVE_EXISTING_PAGE
+  NEW_ARTICLE
+  NEW_LANDING_PAGE
+  NEW_COMPARISON_PAGE
+  NEW_GLOSSARY_PAGE
+  NEW_PRODUCT_PAGE
+  ADD_FAQ_SECTION
+  CONTENT_REFRESH
+  CTR_OPTIMISATION
+  CONSOLIDATE_CANNIBALISATION
+  NO_ACTION
+}
+
+enum OpportunityStatus {
+  IDENTIFIED
+  ACCEPTED
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+  EXPIRED
+}
+
+model ContentOpportunity {
+  id        String @id @default(cuid())
+  websiteId String
+  pageId    String?
+  keywordId String?
+  clusterId String?
+
+  type        OpportunityType
+  status      OpportunityStatus @default(IDENTIFIED)
+  title       String
+  targetKeyword String?
+  secondaryKeywords String[] @default([])
+  suggestedUrl String?
+  reasoning   String
+  evidence    Json    @default("{}")
+
+  impactScore     Float @default(0)
+  effortScore     Float @default(0)
+  confidenceScore Float @default(0)
+  priorityScore   Float @default(0)
+  estimatedTrafficGain Int?
+
+  cannibalizationChecked Boolean @default(false)
+  cannibalizationRisk    Float?
+  existingPageMatch      String?
+
+  discoveredAt DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  expiresAt    DateTime?
+
+  website Website         @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  page    Page?           @relation(fields: [pageId], references: [id], onDelete: SetNull)
+  keyword Keyword?        @relation(fields: [keywordId], references: [id], onDelete: SetNull)
+  cluster KeywordCluster? @relation(fields: [clusterId], references: [id], onDelete: SetNull)
+  briefs  ContentBrief[]
+
+  @@index([websiteId, status, priorityScore])
+  @@index([websiteId, type])
+}
+
+model ContentBrief {
+  id        String @id @default(cuid())
+  websiteId String
+  opportunityId String?
+
+  title           String
+  targetKeyword   String
+  secondaryKeywords String[] @default([])
+  intent          SearchIntent @default(UNKNOWN)
+  funnelStage     FunnelStage  @default(UNKNOWN)
+  audience        String?
+  suggestedUrl    String?
+  titleIdeas      String[] @default([])
+  metaDescription String?
+  outline         Json     @default("[]")
+  entities        String[] @default([])
+  questions       String[] @default([])
+  competitorWeaknesses String[] @default([])
+  originalAngle   String?
+  supportingEvidence Json  @default("[]")
+  internalLinkTargets Json @default("[]")
+  schemaOpportunity String[] @default([])
+  cta             String?
+  geoRecommendations String[] @default([])
+  targetWordCount Int?
+  serpAnalysis    Json?    @default("{}")
+  status          String   @default("DRAFT")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  website     Website             @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  opportunity ContentOpportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  drafts      ContentDraft[]
+
+  @@index([websiteId, createdAt])
+}
+
+enum ContentStage {
+  RESEARCH
+  INTENT_ANALYSIS
+  CANNIBALISATION_CHECK
+  COMPETITOR_ANALYSIS
+  BRIEF
+  OUTLINE
+  DRAFT
+  FACT_CHECK
+  SEO_OPTIMISATION
+  BRAND_REVIEW
+  INTERNAL_LINKING
+  STRUCTURED_DATA
+  QUALITY_REVIEW
+  READY_FOR_APPROVAL
+  APPROVED
+  PUBLISHED
+  REJECTED
+}
+
+enum ContentStageStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+
+model ContentDraft {
+  id        String @id @default(cuid())
+  websiteId String
+  briefId   String?
+  pageId    String?
+
+  kind        String  @default("NEW")
+  title       String
+  slug        String?
+  metaTitle   String?
+  metaDescription String?
+  bodyMarkdown String  @default("")
+  bodyHtml     String?
+  excerpt      String?
+  targetKeyword String?
+  wordCount    Int     @default(0)
+
+  stage       ContentStage @default(RESEARCH)
+  currentStageStatus ContentStageStatus @default(PENDING)
+
+  seoScore        Float?
+  geoScore        Float?
+  readabilityScore Float?
+  qualityScore    Float?
+  keywordCoverage Json?  @default("{}")
+  qualityFlags    Json   @default("[]")
+  unverifiedClaims Json  @default("[]")
+  sources         Json   @default("[]")
+  internalLinks   Json   @default("[]")
+  structuredData  Json?
+  scheduledFor    DateTime?
+  publishedAt     DateTime?
+  publishedUrl    String?
+  externalId      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  website  Website        @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  brief    ContentBrief?  @relation(fields: [briefId], references: [id], onDelete: SetNull)
+  page     Page?          @relation(fields: [pageId], references: [id], onDelete: SetNull)
+  stages   ContentStageRun[]
+  versions ContentVersion[]
+
+  @@index([websiteId, stage])
+  @@index([websiteId, createdAt])
+}
+
+model ContentStageRun {
+  id      String @id @default(cuid())
+  draftId String
+
+  stage     ContentStage
+  status    ContentStageStatus @default(PENDING)
+  attempt   Int      @default(1)
+  input     Json?    @default("{}")
+  output    Json?    @default("{}")
+  notes     String?
+  error     String?
+  agentRunId String?
+  startedAt  DateTime?
+  finishedAt DateTime?
+  durationMs Int?
+
+  createdAt DateTime @default(now())
+
+  draft ContentDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+
+  @@index([draftId, stage])
+}
+
+model ContentVersion {
+  id      String @id @default(cuid())
+  draftId String
+
+  version   Int
+  title     String
+  bodyMarkdown String
+  metaTitle String?
+  metaDescription String?
+  authorType String @default("ai")
+  authorName String?
+  changeSummary String?
+  createdAt DateTime @default(now())
+
+  draft ContentDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+
+  @@unique([draftId, version])
+  @@index([draftId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Internal linking
+// ─────────────────────────────────────────────────────────────
+
+enum SuggestionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  APPLIED
+  FAILED
+}
+
+model InternalLinkSuggestion {
+  id        String @id @default(cuid())
+  websiteId String
+  sourcePageId String
+  targetPageId String
+
+  anchorText     String
+  placementHint  String?
+  contextSnippet String?
+  reason         String
+  relevanceScore Float  @default(0)
+  impactScore    Float  @default(0)
+  status         SuggestionStatus @default(PENDING)
+  appliedAt      DateTime?
+  rejectedReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  website    Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  sourcePage Page    @relation("LinkSuggestionSource", fields: [sourcePageId], references: [id], onDelete: Cascade)
+  targetPage Page    @relation("LinkSuggestionTarget", fields: [targetPageId], references: [id], onDelete: Cascade)
+
+  @@unique([sourcePageId, targetPageId])
+  @@index([websiteId, status, relevanceScore])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Structured data & entities
+// ─────────────────────────────────────────────────────────────
+
+enum SchemaValidationStatus {
+  VALID
+  WARNING
+  INVALID
+  UNVALIDATED
+}
+
+enum DeploymentStatus {
+  NOT_DEPLOYED
+  PENDING
+  DEPLOYED
+  FAILED
+}
+
+model StructuredDataItem {
+  id        String @id @default(cuid())
+  websiteId String
+  pageId    String?
+
+  schemaType String
+  jsonLd     Json
+  source     String @default("generated")
+  validationStatus SchemaValidationStatus @default(UNVALIDATED)
+  validationErrors Json @default("[]")
+  deploymentStatus DeploymentStatus       @default(NOT_DEPLOYED)
+  deployedAt DateTime?
+  notes      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  website Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  page    Page?   @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([websiteId, schemaType])
+  @@index([pageId])
+}
+
+enum EntityType {
+  BRAND
+  WEBSITE
+  COMPANY
+  PRODUCT
+  SERVICE
+  PERSON
+  TOPIC
+  ORGANIZATION
+  LOCATION
+  SOFTWARE
+  FEATURE
+  EVENT
+  CONCEPT
+}
+
+model Entity {
+  id        String @id @default(cuid())
+  websiteId String
+
+  name        String
+  type        EntityType
+  description String?
+  aliases     String[] @default([])
+  sameAs      String[] @default([])
+  canonicalUrl String?
+  attributes  Json     @default("{}")
+  confidence  Float    @default(0.7)
+  mentionCount Int     @default(0)
+  isPrimary   Boolean  @default(false)
+  source      String   @default("ai")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  website Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  outgoing EntityRelationship[] @relation("FromEntity")
+  incoming EntityRelationship[] @relation("ToEntity")
+
+  @@unique([websiteId, name, type])
+  @@index([websiteId, type])
+}
+
+model EntityRelationship {
+  id       String @id @default(cuid())
+  fromId   String
+  toId     String
+  relation String
+  weight   Float  @default(1)
+  evidence String?
+  createdAt DateTime @default(now())
+
+  from Entity @relation("FromEntity", fields: [fromId], references: [id], onDelete: Cascade)
+  to   Entity @relation("ToEntity", fields: [toId], references: [id], onDelete: Cascade)
+
+  @@unique([fromId, toId, relation])
+  @@index([toId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// GEO
+// ─────────────────────────────────────────────────────────────
+
+model GeoAudit {
+  id        String @id @default(cuid())
+  websiteId String
+
+  overallScore Float
+  dimensions   Json   @default("{}")
+  findings     Json   @default("[]")
+  recommendations Json @default("[]")
+  pagesAudited Int    @default(0)
+  method       String @default("deterministic+llm")
+  summary      String?
+
+  createdAt DateTime @default(now())
+
+  website   Website        @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  pageAudits GeoPageAudit[]
+
+  @@index([websiteId, createdAt])
+}
+
+model GeoPageAudit {
+  id       String @id @default(cuid())
+  auditId  String
+  pageId   String
+
+  score      Float
+  dimensions Json  @default("{}")
+  findings   Json  @default("[]")
+
+  audit GeoAudit @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  page  Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@unique([auditId, pageId])
+  @@index([pageId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// AI visibility
+// ─────────────────────────────────────────────────────────────
+
+model AiVisibilityPrompt {
+  id        String @id @default(cuid())
+  websiteId String
+
+  prompt    String
+  category  String?
+  locale    String  @default("en-US")
+  priority  Int     @default(50)
+  isActive  Boolean @default(true)
+  source    String  @default("ai")
+  expectedBrand String?
+
+  mentionRate  Float?
+  citationRate Float?
+  lastRunAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  website Website             @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  runs    AiVisibilityRun[]
+
+  @@unique([websiteId, prompt, locale])
+  @@index([websiteId, isActive, priority])
+}
+
+model AiVisibilityRun {
+  id        String @id @default(cuid())
+  websiteId String
+  promptId  String
+
+  provider   String
+  model      String?
+  method     String  @default("api")
+  answerText String
+  brandMentioned Boolean @default(false)
+  brandPosition  Int?
+  brandSentiment String?
+  citedUrls      String[] @default([])
+  ourUrlsCited   String[] @default([])
+  competitorsMentioned String[] @default([])
+  confidence     Float   @default(0.6)
+  tokensUsed     Int?
+  costUsd        Float?
+  error          String?
+
+  runAt DateTime @default(now())
+
+  website  Website              @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  prompt   AiVisibilityPrompt   @relation(fields: [promptId], references: [id], onDelete: Cascade)
+  mentions AiVisibilityMention[]
+
+  @@index([websiteId, runAt])
+  @@index([promptId, runAt])
+}
+
+model AiVisibilityMention {
+  id    String @id @default(cuid())
+  runId String
+
+  entityName String
+  isOurBrand Boolean @default(false)
+  position   Int?
+  context    String?
+  sentiment  String?
+  citedUrl   String?
+
+  run AiVisibilityRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Backlinks
+// ─────────────────────────────────────────────────────────────
+
+model Backlink {
+  id        String @id @default(cuid())
+  websiteId String
+
+  referringDomain String
+  sourceUrl       String
+  targetUrl       String
+  anchorText      String?
+  isFollow        Boolean  @default(true)
+  domainAuthority Float?
+  firstSeenAt     DateTime @default(now())
+  lastSeenAt      DateTime @default(now())
+  lostAt          DateTime?
+  status          String   @default("ACTIVE")
+  isSuspicious    Boolean  @default(false)
+  provider        String   @default("csv")
+
+  website Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  @@unique([websiteId, sourceUrl, targetUrl])
+  @@index([websiteId, status])
+  @@index([websiteId, referringDomain])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Actions, approvals, automation
+// ─────────────────────────────────────────────────────────────
+
+enum ActionType {
+  FIX_TECHNICAL_ISSUE
+  UPDATE_TITLE
+  UPDATE_META_DESCRIPTION
+  UPDATE_CONTENT
+  PUBLISH_CONTENT
+  CREATE_CONTENT_BRIEF
+  ADD_INTERNAL_LINKS
+  ADD_STRUCTURED_DATA
+  CREATE_REDIRECT
+  REFRESH_CONTENT
+  CONSOLIDATE_PAGES
+  SUBMIT_URL_INDEXING
+  GEO_IMPROVEMENT
+  OUTREACH_DRAFT
+  CUSTOM
+}
+
+enum ActionRisk {
+  SAFE
+  MEDIUM
+  HIGH
+}
+
+enum ActionStatus {
+  PROPOSED
+  QUEUED
+  AWAITING_APPROVAL
+  APPROVED
+  REJECTED
+  EXECUTING
+  COMPLETED
+  FAILED
+  ROLLED_BACK
+  CANCELLED
+  MEASURING
+  EVALUATED
+}
+
+model SeoAction {
+  id        String @id @default(cuid())
+  websiteId String
+
+  type    ActionType
+  title   String
+  status  ActionStatus @default(PROPOSED)
+  risk    ActionRisk   @default(SAFE)
+
+  reasoning      String
+  evidence       Json    @default("{}")
+  affectedUrls   String[] @default([])
+  requiredAgent  String?
+  payload        Json     @default("{}")
+
+  impactScore     Float @default(0)
+  effortScore     Float @default(1)
+  confidenceScore Float @default(0.5)
+  businessValue   Float @default(0.5)
+  riskScore       Float @default(1)
+  priorityScore   Float @default(0)
+  priorityFactors Json  @default("{}")
+
+  sourceType String?
+  sourceId   String?
+  autoExecutable Boolean @default(false)
+
+  proposedAt  DateTime  @default(now())
+  approvedAt  DateTime?
+  executedAt  DateTime?
+  completedAt DateTime?
+  measureAfter DateTime?
+  error       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  website    Website           @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  executions ActionExecution[]
+  approvals  Approval[]
+  experiment Experiment?
+  changeLogs ChangeLog[]
+
+  @@index([websiteId, status, priorityScore])
+  @@index([websiteId, type])
+}
+
+model ActionExecution {
+  id       String @id @default(cuid())
+  actionId String
+
+  attempt    Int      @default(1)
+  status     String   @default("RUNNING")
+  adapter    String?
+  request    Json?    @default("{}")
+  response   Json?    @default("{}")
+  beforeState Json?   @default("{}")
+  afterState  Json?   @default("{}")
+  rollbackData Json?  @default("{}")
+  error      String?
+  startedAt  DateTime @default(now())
+  finishedAt DateTime?
+  durationMs Int?
+
+  action SeoAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
+
+  @@index([actionId])
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+model Approval {
+  id        String @id @default(cuid())
+  websiteId String
+  actionId  String?
+  userId    String?
+
+  kind        String
+  title       String
+  description String?
+  risk        ActionRisk @default(SAFE)
+  status      ApprovalStatus @default(PENDING)
+  diff        Json?      @default("{}")
+  payload     Json       @default("{}")
+  decidedAt   DateTime?
+  decisionNote String?
+  editedPayload Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  website Website    @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  action  SeoAction? @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  user    User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([websiteId, status])
+  @@index([status, createdAt])
+}
+
+enum ExperimentStatus {
+  RUNNING
+  COMPLETED
+  ABANDONED
+}
+
+enum ExperimentOutcome {
+  PENDING
+  LIKELY_POSITIVE
+  INCONCLUSIVE
+  LIKELY_NEGATIVE
+}
+
+model Experiment {
+  id        String @id @default(cuid())
+  websiteId String
+  actionId  String? @unique
+  pageId    String?
+
+  name        String
+  hypothesis  String?
+  metric      String  @default("clicks")
+  status      ExperimentStatus  @default(RUNNING)
+  outcome     ExperimentOutcome @default(PENDING)
+
+  changeSummary String?
+  beforeState   Json  @default("{}")
+  afterState    Json  @default("{}")
+
+  baselineStart DateTime
+  baselineEnd   DateTime
+  measureStart  DateTime
+  measureEnd    DateTime?
+  minDays       Int      @default(28)
+
+  baselineMetrics Json? @default("{}")
+  resultMetrics   Json? @default("{}")
+  deltaPct        Float?
+  significance    Float?
+  interpretation  String?
+  evaluatedAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  website Website    @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  action  SeoAction? @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  page    Page?      @relation(fields: [pageId], references: [id], onDelete: SetNull)
+
+  @@index([websiteId, status])
+}
+
+/// Immutable audit trail of everything the platform changed.
+model ChangeLog {
+  id        String @id @default(cuid())
+  websiteId String
+  actionId  String?
+  userId    String?
+
+  actor       String
+  agent       String?
+  changeType  String
+  targetUrl   String?
+  summary     String
+  beforeState Json?  @default("{}")
+  afterState  Json?  @default("{}")
+  reason      String?
+  approved    Boolean @default(false)
+  rollbackable Boolean @default(false)
+  rolledBackAt DateTime?
+  resultMetrics Json? @default("{}")
+
+  createdAt DateTime @default(now())
+
+  website Website    @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  action  SeoAction? @relation(fields: [actionId], references: [id], onDelete: SetNull)
+  user    User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([websiteId, createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Agents, AI usage, jobs
+// ─────────────────────────────────────────────────────────────
+
+enum AgentRunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model AgentRun {
+  id        String @id @default(cuid())
+  websiteId String
+
+  agent     String
+  trigger   String @default("manual")
+  status    AgentRunStatus @default(RUNNING)
+  input     Json   @default("{}")
+  output    Json?  @default("{}")
+  summary   String?
+  toolCalls Json   @default("[]")
+  confidence Float?
+  actionsCreated Int @default(0)
+  error     String?
+  provider  String?
+  model     String?
+  tokensIn  Int?
+  tokensOut Int?
+  costUsd   Float?
+  startedAt DateTime @default(now())
+  finishedAt DateTime?
+  durationMs Int?
+
+  website Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  @@index([websiteId, agent, startedAt])
+  @@index([status])
+}
+
+model AiUsage {
+  id        String  @id @default(cuid())
+  websiteId String?
+
+  provider  String
+  model     String
+  task      String
+  agent     String?
+  tokensIn  Int     @default(0)
+  tokensOut Int     @default(0)
+  costUsd   Float   @default(0)
+  latencyMs Int?
+  success   Boolean @default(true)
+  createdAt DateTime @default(now())
+
+  website Website? @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  @@index([websiteId, createdAt])
+  @@index([createdAt])
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+  DELAYED
+}
+
+/// Durable mirror of queue jobs so the Jobs UI works even when Redis is unavailable.
+model JobRecord {
+  id        String @id @default(cuid())
+  websiteId String?
+
+  queue     String
+  jobName   String
+  jobId     String?  @unique
+  status    JobStatus @default(QUEUED)
+  progress  Int       @default(0)
+  progressMessage String?
+  payload   Json      @default("{}")
+  result    Json?     @default("{}")
+  error     String?
+  attempts  Int       @default(0)
+  maxAttempts Int     @default(3)
+  startedAt DateTime?
+  finishedAt DateTime?
+  durationMs Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  website Website? @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  @@index([websiteId, createdAt])
+  @@index([status, createdAt])
+  @@index([queue, status])
+}
+
+model ScheduledJob {
+  id        String @id @default(cuid())
+  websiteId String?
+
+  name      String
+  queue     String
+  jobName   String
+  cron      String
+  payload   Json    @default("{}")
+  isEnabled Boolean @default(true)
+  lastRunAt DateTime?
+  nextRunAt DateTime?
+  lastStatus String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  website Website? @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  @@unique([websiteId, name])
+  @@index([isEnabled])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Reporting & notifications
+// ─────────────────────────────────────────────────────────────
+
+model Report {
+  id        String @id @default(cuid())
+  websiteId String?
+
+  type       String
+  title      String
+  periodStart DateTime
+  periodEnd   DateTime
+  data       Json    @default("{}")
+  summary    String?
+  highlights Json    @default("[]")
+  createdAt  DateTime @default(now())
+
+  website Website? @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  @@index([websiteId, type, periodEnd])
+}
+
+enum NotificationSeverity {
+  INFO
+  SUCCESS
+  WARNING
+  CRITICAL
+}
+
+model Notification {
+  id        String  @id @default(cuid())
+  websiteId String?
+  userId    String?
+
+  type      String
+  severity  NotificationSeverity @default(INFO)
+  title     String
+  message   String
+  link      String?
+  data      Json    @default("{}")
+  isRead    Boolean @default(false)
+  readAt    DateTime?
+  /// Deduplication key so repeated detections do not spam the inbox.
+  dedupeKey String?
+
+  createdAt DateTime @default(now())
+
+  website Website? @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  user    User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([dedupeKey])
+  @@index([userId, isRead, createdAt])
+  @@index([websiteId, createdAt])
+}
+
+/// Daily roll-up of site-level scores; powers the score history charts.
+model ScoreSnapshot {
+  id        String   @id @default(cuid())
+  websiteId String
+  date      DateTime @db.Date
+
+  healthScore       Float?
+  geoScore          Float?
+  aiVisibilityScore Float?
+  contentScore      Float?
+  openIssues        Int    @default(0)
+  criticalIssues    Int    @default(0)
+  indexablePages    Int    @default(0)
+  orphanPages       Int    @default(0)
+  keywordsTop3      Int    @default(0)
+  keywordsTop10     Int    @default(0)
+  keywordsTop100    Int    @default(0)
+  clicks28d         Int    @default(0)
+  impressions28d    Int    @default(0)
+  avgPosition       Float?
+
+  website Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  @@unique([websiteId, date])
+  @@index([websiteId, date])
+}
+
+/// The AI SEO Manager's plan for a site (today / this week / this month).
+model StrategyPlan {
+  id        String @id @default(cuid())
+  websiteId String
+
+  periodLabel String
+  situation   String
+  biggestProblems Json @default("[]")
+  biggestOpportunities Json @default("[]")
+  strategy    String
+  today       Json @default("[]")
+  thisWeek    Json @default("[]")
+  thisMonth   Json @default("[]")
+  observedResults Json @default("[]")
+  confidence  Float @default(0.6)
+  agentRunId  String?
+  isCurrent   Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  website Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  @@index([websiteId, createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Embeddings
+// ─────────────────────────────────────────────────────────────
+
+enum EmbeddingOwner {
+  PAGE
+  KEYWORD
+  CLUSTER
+  ENTITY
+  DRAFT
+}
+
+model EmbeddingRecord {
+  id        String @id @default(cuid())
+  websiteId String
+
+  ownerType EmbeddingOwner
+  pageId    String? @unique
+  keywordId String? @unique
+  ownerId   String
+
+  model     String
+  dimensions Int
+  vector    Float[]
+  textHash  String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  page    Page?    @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  keyword Keyword? @relation(fields: [keywordId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerType, ownerId])
+  @@index([websiteId, ownerType])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Global app settings (single-row-ish key/value)
+// ─────────────────────────────────────────────────────────────
+
+model AppSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}

@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": { "baseUrl": ".", "noEmit": true, "jsx": "preserve" },
+  "include": ["packages/**/*.ts"],
+  "exclude": ["node_modules", "**/dist", "**/__tests__/**"]
+}

@@ -1,0 +1,233 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Design tokens. Two themes, one variable set.
+ * Neutral-cool greys, one indigo accent, tight radii — dense B2B analytics surface.
+ */
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 224 14% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 224 14% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 14% 12%;
+
+    --primary: 243 75% 59%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 224 12% 24%;
+
+    --muted: 220 14% 96%;
+    /*
+     * 46% lightness cleared 4.5:1 on white but measured 4.39:1 on `--muted` itself — and muted
+     * text sits inside muted chips and table headers constantly. 42% clears AA on both grounds.
+     */
+    --muted-foreground: 220 10% 42%;
+
+    --accent: 220 14% 95%;
+    --accent-foreground: 224 14% 15%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 152 61% 34%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 32 95% 44%;
+    --warning-foreground: 0 0% 100%;
+
+    --info: 213 94% 50%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 243 75% 59%;
+
+    --sidebar: 220 20% 98.5%;
+    --sidebar-foreground: 224 14% 20%;
+
+    --chart-1: 243 75% 59%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 32 95% 50%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 199 89% 48%;
+    --chart-6: 340 75% 55%;
+
+    /*
+     * Categorical colours for SMALL TEXT (avatar initials, entity chips).
+     * --chart-* is calibrated for filled marks; at 10-12px those hues fall well below
+     * 4.5:1 on the page background (the orange measures 2.46:1 on white). This ramp is
+     * darkened for light mode and lightened for dark mode so every tone passes AA.
+     */
+    /*
+     * Semantic colours have two jobs with opposite contrast needs: a filled badge
+     * (white text on the colour) and coloured text on the page background. The fill
+     * values below are tuned for the first; these *-text values are darkened for the
+     * second, because at 11-12px the fill values measure 3.2-4.4:1 on white and AA
+     * needs 4.5:1. Tailwind maps `bg-*` to the fill and `text-*` to these.
+     */
+    --success-text: 152 63% 28%;
+    --warning-text: 30 90% 30%;
+    --destructive-text: 0 72% 43%;
+    --info-text: 213 90% 38%;
+
+    --tone-1: 243 65% 45%;
+    --tone-2: 173 70% 27%;
+    --tone-3: 25 85% 34%;
+    --tone-4: 280 55% 45%;
+    --tone-5: 199 85% 30%;
+    --tone-6: 340 65% 40%;
+
+    --radius: 0.5rem;
+    --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  .dark {
+    --background: 224 20% 7%;
+    --foreground: 220 14% 93%;
+
+    --card: 224 18% 9.5%;
+    --card-foreground: 220 14% 93%;
+
+    --popover: 224 18% 10.5%;
+    --popover-foreground: 220 14% 93%;
+
+    /*
+     * 68% lightness gave 4.06:1 for `text-primary` on `bg-primary/10` — the active nav item and
+     * every primary-tinted label. 76% clears AA there and, because primary is also a button fill
+     * with near-black foreground, brightening improves that pairing too.
+     */
+    --primary: 243 90% 76%;
+    --primary-foreground: 224 30% 8%;
+
+    --secondary: 223 15% 16%;
+    --secondary-foreground: 220 14% 90%;
+
+    --muted: 223 15% 15%;
+    --muted-foreground: 220 9% 62%;
+
+    --accent: 223 15% 18%;
+    --accent-foreground: 220 14% 93%;
+
+    --destructive: 0 72% 58%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 152 55% 46%;
+    --success-foreground: 224 30% 8%;
+
+    --warning: 38 92% 55%;
+    --warning-foreground: 224 30% 8%;
+
+    --info: 213 94% 62%;
+    --info-foreground: 224 30% 8%;
+
+    --border: 223 14% 18%;
+    --input: 223 14% 20%;
+    --ring: 243 80% 68%;
+
+    --sidebar: 224 21% 8.5%;
+    --sidebar-foreground: 220 14% 88%;
+
+    --chart-1: 243 80% 70%;
+    --chart-2: 173 58% 50%;
+    --chart-3: 32 95% 60%;
+    --chart-4: 280 65% 70%;
+    --chart-5: 199 89% 60%;
+    --chart-6: 340 75% 65%;
+
+    /* On the dark ground the fill values already clear AA as text, so the roles agree. */
+    --success-text: 152 55% 52%;
+    --warning-text: 38 92% 60%;
+    --destructive-text: 0 80% 68%;
+    --info-text: 213 94% 68%;
+
+    --tone-1: 243 85% 78%;
+    --tone-2: 173 60% 62%;
+    --tone-3: 32 95% 68%;
+    --tone-4: 280 70% 80%;
+    --tone-5: 199 90% 70%;
+    --tone-6: 340 80% 74%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-sans);
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  /* Tabular numerals everywhere numbers are compared vertically. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::selection {
+    @apply bg-primary/20;
+  }
+
+  /* Scrollbars: thin, theme-aware, non-intrusive */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border));
+    border-radius: 8px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground) / 0.5);
+    background-clip: content-box;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+}
+
+@layer components {
+  /* Loading skeleton shimmer */
+  .skeleton {
+    @apply relative overflow-hidden rounded-md bg-muted;
+  }
+  .skeleton::after {
+    @apply absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-foreground/[0.06] to-transparent;
+    content: '';
+  }
+
+  .data-grid-row {
+    @apply border-b border-border/60 transition-colors hover:bg-muted/40;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
