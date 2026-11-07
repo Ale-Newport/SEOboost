@@ -78,6 +78,10 @@ function keys(secrets: SocialAccountSecrets) {
   };
 }
 
+/**
+ * One request as the connected account: an OAuth 2.0 user token from one-click connection
+ * (kept fresh upstream), or OAuth 1.0a signing for keys pasted from the developer portal.
+ */
 async function signed(
   secrets: SocialAccountSecrets,
   method: 'GET' | 'POST' | 'DELETE',
@@ -85,10 +89,14 @@ async function signed(
   body?: unknown,
 ) {
   const url = `${API}${path}`;
+  const authorization =
+    secrets.credentials.authType === 'oauth2'
+      ? `Bearer ${requireCredential(secrets, 'accessToken', LABEL)}`
+      : oauth1Header({ method, url, ...keys(secrets) });
   return httpRequest(url, {
     method,
     ...(body !== undefined ? { body } : {}),
-    headers: { authorization: oauth1Header({ method, url, ...keys(secrets) }) },
+    headers: { authorization },
   });
 }
 

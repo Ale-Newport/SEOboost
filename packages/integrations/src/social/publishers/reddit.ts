@@ -97,7 +97,7 @@ export const redditPublisher: SocialPublisher = {
 
   async test(secrets) {
     const creds = credentials(secrets);
-    if (!creds.username || !creds.password) {
+    if (!creds.accessToken && (!creds.username || !creds.password)) {
       // App-only: proves the id/secret work for search and rules without claiming posting rights.
       await redditApi(creds, '/r/announcements/about', { mode: 'app' });
       return {

@@ -84,7 +84,7 @@ Everything else is optional and the product degrades honestly without it:
 | Variable | Enables | Without it |
 |---|---|---|
 | `REDIS_URL` | Background jobs | Jobs queue but never run; the UI says so |
-| `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GOOGLE_AI_API_KEY` | Agents, content, GEO recommendations, AI visibility | Deterministic audits, scoring, links and GEO scoring still work |
+| Sign in with ChatGPT (Settings → AI) or `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GOOGLE_AI_API_KEY` | Agents, content, GEO recommendations, AI visibility — the ChatGPT option uses your Plus/Pro plan instead of an API key | Deterministic audits, scoring, links and GEO scoring still work |
 | `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` | Search Console + GA4 | Traffic panels show empty states |
 | `BING_API_KEY` | Bing data and URL submission | Bing panels marked not configured |
 | `DATAFORSEO_*` / `SERPAPI_KEY` / `SERPER_API_KEY` | Search volume, difficulty, SERP snapshots, competitor discovery | Keyword data comes from Search Console; scores say so explicitly |

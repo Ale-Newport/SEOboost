@@ -6,10 +6,18 @@ import {
   type SocialPostStatus,
   prisma,
 } from '@seo/db';
-import type { SocialAccountSecrets } from '@seo/integrations';
+import {
+  isOAuthPlatform,
+  mergeRefreshedCredentials,
+  OAUTH_PROVIDERS,
+  refreshOAuthTokens,
+  SocialSourceError,
+  tokenState,
+  type SocialAccountSecrets,
+} from '@seo/integrations';
 import { promotionStats, SOCIAL_HARD_LIMITS, type PromotionStats } from '@seo/seo-engine';
-import { cleanDomain, toUtcDate } from '@seo/shared';
-import { tryDecryptJson } from '@seo/shared/crypto';
+import { cleanDomain, createLogger, errorMessage, toUtcDate, truncate } from '@seo/shared';
+import { encryptJson, tryDecryptJson } from '@seo/shared/crypto';
 import { jsonArray, jsonObject, loadSite, type SiteContext } from './shared';
 
 /**
@@ -107,17 +115,94 @@ export function accountSecrets(account: Pick<SocialAccount, 'credentials' | 'con
   return { credentials, config: jsonObject(account.config) };
 }
 
+const log = createLogger('social:accounts');
+
+async function markUnusable(accountId: string, status: 'EXPIRED' | 'ERROR', message: string): Promise<void> {
+  await prisma.socialAccount.update({ where: { id: accountId }, data: { status, lastError: truncate(message, 1_000) } });
+}
+
+/**
+ * Credentials that are safe to use right now.
+ *
+ * OAuth access tokens expire (X after two hours, Reddit after a day, LinkedIn after two months);
+ * this refreshes them shortly before they do and stores the rotated pair. The refresh runs under
+ * a Postgres advisory lock on the account, so the web app and the worker can never both spend
+ * the same rotating refresh token — the second caller waits, re-reads, and finds it already
+ * fresh. A refused refresh marks the account EXPIRED with a reconnect message and returns null;
+ * a transient failure keeps using the current token while it is still valid.
+ */
+export async function freshAccountSecrets(account: SocialAccount): Promise<SocialAccountSecrets | null> {
+  const secrets = accountSecrets(account);
+  if (!secrets) return null;
+  const state = tokenState(secrets.credentials);
+  if (state.kind === 'not-oauth' || state.kind === 'valid' || !isOAuthPlatform(account.platform)) return secrets;
+
+  const label = OAUTH_PROVIDERS[account.platform].label;
+  if (state.kind === 'expired') {
+    await markUnusable(
+      account.id,
+      'EXPIRED',
+      `The ${label} connection expired on ${state.expiresAt.toISOString().slice(0, 10)} and ${label} issues no refresh token for it. Reconnect it from Social → Accounts.`,
+    );
+    return null;
+  }
+
+  const platform = account.platform;
+  try {
+    return await prisma.$transaction(
+      async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`social-account:${account.id}`}))`;
+        const current = await tx.socialAccount.findUnique({ where: { id: account.id } });
+        const currentSecrets = current ? accountSecrets(current) : null;
+        if (!currentSecrets) return null;
+        if (tokenState(currentSecrets.credentials).kind !== 'refresh') return currentSecrets;
+
+        const instanceUrl = typeof currentSecrets.config.instanceUrl === 'string' ? currentSecrets.config.instanceUrl : null;
+        const tokens = await refreshOAuthTokens({
+          platform,
+          refreshToken: currentSecrets.credentials.refreshToken ?? '',
+          instanceUrl,
+        });
+        const credentials = mergeRefreshedCredentials(currentSecrets.credentials, tokens);
+        await tx.socialAccount.update({
+          where: { id: account.id },
+          data: { credentials: encryptJson(credentials), status: 'CONNECTED', lastError: null },
+        });
+        log.info('oauth token refreshed', { accountId: account.id, platform });
+        return { credentials, config: currentSecrets.config };
+      },
+      // The refresh is one HTTP call; the lock must outlive it but never hang a job.
+      { maxWait: 15_000, timeout: 30_000 },
+    );
+  } catch (err) {
+    if (err instanceof SocialSourceError && (err.code === 'NEED_LOGIN' || err.code === 'NOT_CONFIGURED')) {
+      await markUnusable(
+        account.id,
+        err.code === 'NEED_LOGIN' ? 'EXPIRED' : 'ERROR',
+        `${label} refused to renew the connection: ${err.message} ${err.hint ?? ''}`.trim(),
+      );
+      return null;
+    }
+    log.warn('oauth refresh failed; keeping the current token while it lasts', { accountId: account.id, error: errorMessage(err) });
+    return state.expiresAt.getTime() > Date.now() ? secrets : null;
+  }
+}
+
 export interface ConnectedAccount {
   account: SocialAccount;
   secrets: SocialAccountSecrets;
 }
 
+/** Connected accounts with credentials that work right now (expiring OAuth tokens refreshed). */
 export async function loadConnectedAccounts(websiteId: string): Promise<ConnectedAccount[]> {
   const rows = await prisma.socialAccount.findMany({ where: { websiteId, status: 'CONNECTED' } });
-  return rows.flatMap((account) => {
-    const secrets = accountSecrets(account);
-    return secrets ? [{ account, secrets }] : [];
-  });
+  const out: ConnectedAccount[] = [];
+  // Sequential on purpose: each refresh takes a per-account lock and one HTTP call.
+  for (const account of rows) {
+    const secrets = await freshAccountSecrets(account);
+    if (secrets) out.push({ account, secrets });
+  }
+  return out;
 }
 
 /** Subreddits (or other communities) the operator owns, from the account's config. */

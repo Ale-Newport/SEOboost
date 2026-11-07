@@ -14,6 +14,7 @@ export const dynamic = 'force-dynamic';
 
 /** Display names for the registry's provider keys. */
 const PROVIDER_LABEL: Record<string, string> = {
+  chatgpt: 'ChatGPT plan',
   openai: 'OpenAI',
   anthropic: 'Anthropic',
   gemini: 'Google Gemini',

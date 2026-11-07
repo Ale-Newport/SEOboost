@@ -8,3 +8,4 @@ export * from './sources/hackernews';
 export * from './sources/bluesky';
 export * from './listen';
 export * from './publishers/registry';
+export * from './oauth';

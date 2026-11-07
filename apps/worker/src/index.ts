@@ -160,6 +160,16 @@ async function main(): Promise<void> {
 
   await waitForDatabase();
 
+  // AI availability is a synchronous check, so the ChatGPT sign-in state is loaded before any
+  // job asks "is an AI provider configured?" — and then kept fresh in the background.
+  try {
+    const { primeChatGptConnection } = await import('@seo/ai');
+    const chatgpt = await primeChatGptConnection();
+    if (chatgpt.connected) log.info('ChatGPT plan connected', { models: chatgpt.models.length });
+  } catch (err) {
+    log.warn('could not load the ChatGPT connection state', { error: errorMessage(err) });
+  }
+
   const redis = await checkRedisConnection();
   if (!redis.ok) {
     log.warn(

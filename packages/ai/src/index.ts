@@ -15,4 +15,5 @@ export * from './registry';
 export * from './usage';
 export * from './embeddings';
 export * from './client';
+export * from './chatgpt/index';
 export * from './prompts';

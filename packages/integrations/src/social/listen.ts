@@ -87,7 +87,10 @@ async function readersFor(req: ListenRequest): Promise<Reader[]> {
           for (const query of queries) {
             results.push(...(await agentReachSearch(req.platform, query, opts)));
           }
-          return results;
+          // agent-reach's public-web route returns the best matches of all time, not the latest;
+          // threads older than the window are not conversations anyone is still reading.
+          const since = req.since;
+          return since ? results.filter((finding) => !finding.publishedAt || finding.publishedAt >= since) : results;
         },
       }
     : null;

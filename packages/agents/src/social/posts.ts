@@ -30,7 +30,7 @@ import {
 import { NotFoundError, ValidationError, createLogger, errorMessage, truncate } from '@seo/shared';
 import { isRecord } from '../agents/shared';
 import {
-  accountSecrets,
+  freshAccountSecrets,
   findCommunity,
   loadSocialContext,
   ownedCommunities,
@@ -209,7 +209,7 @@ export async function publishSocialPost(postId: string, opts: { force?: boolean 
     ? await prisma.socialAccount.findFirst({ where: { id: post.accountId, status: 'CONNECTED' } })
     : await prisma.socialAccount.findFirst({ where: { websiteId: post.websiteId, platform: post.platform, status: 'CONNECTED' } });
   const publisher = getPublisher(post.platform);
-  const secrets = account ? accountSecrets(account) : null;
+  const secrets = account ? await freshAccountSecrets(account) : null;
   const supported =
     publisher &&
     (post.kind === 'REPLY' ? publisher.capabilities.reply : publisher.capabilities.original) &&
@@ -496,7 +496,7 @@ export async function refreshSocialMetrics(websiteId: string, lookbackDays = 14)
   for (const [accountId, group] of byAccount) {
     const account = await prisma.socialAccount.findUnique({ where: { id: accountId } });
     const publisher = account ? getPublisher(account.platform) : null;
-    const secrets = account ? accountSecrets(account) : null;
+    const secrets = account ? await freshAccountSecrets(account) : null;
     if (!account || !publisher?.metrics || !secrets) continue;
     try {
       const metrics: Record<string, PostMetrics> = await publisher.metrics(

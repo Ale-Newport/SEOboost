@@ -152,6 +152,34 @@ export const env = {
   get socialUserAgent(): string {
     return str('SOCIAL_USER_AGENT', `seo-os:social-listening:1.0 (+${this.appUrl})`)!;
   },
+  /**
+   * One-time developer apps for one-click account connection. Optional: they can also be entered
+   * in the UI (Social → Accounts), which stores them encrypted and wins over these.
+   */
+  get redditClientId(): string | undefined {
+    return str('REDDIT_CLIENT_ID');
+  },
+  get redditClientSecret(): string | undefined {
+    return str('REDDIT_CLIENT_SECRET');
+  },
+  get xClientId(): string | undefined {
+    return str('X_CLIENT_ID');
+  },
+  get xClientSecret(): string | undefined {
+    return str('X_CLIENT_SECRET');
+  },
+  get linkedinClientId(): string | undefined {
+    return str('LINKEDIN_CLIENT_ID');
+  },
+  get linkedinClientSecret(): string | undefined {
+    return str('LINKEDIN_CLIENT_SECRET');
+  },
+  get discordClientId(): string | undefined {
+    return str('DISCORD_CLIENT_ID');
+  },
+  get discordClientSecret(): string | undefined {
+    return str('DISCORD_CLIENT_SECRET');
+  },
 
   // ── Worker ────────────────────────────────────────────────
   get workerConcurrency(): number {

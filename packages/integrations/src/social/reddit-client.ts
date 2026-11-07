@@ -22,9 +22,17 @@ export interface RedditCredentials {
   clientSecret: string;
   username?: string | null;
   password?: string | null;
+  /**
+   * A user token from one-click OAuth. Kept fresh by the caller (`freshAccountSecrets`), so it is
+   * used as-is for every call — reading and posting alike — with no grant of its own.
+   */
+  accessToken?: string | null;
 }
 
 export function readRedditCredentials(credentials: Record<string, string>): RedditCredentials | null {
+  if (credentials.authType === 'oauth2' && credentials.accessToken?.trim()) {
+    return { clientId: '', clientSecret: '', accessToken: credentials.accessToken.trim() };
+  }
   const clientId = credentials.clientId?.trim();
   const clientSecret = credentials.clientSecret?.trim();
   if (!clientId || !clientSecret) return null;
@@ -58,6 +66,7 @@ export function redditError(res: HttpResult, operation: string): SocialSourceErr
 }
 
 export async function redditToken(creds: RedditCredentials, mode: 'app' | 'user'): Promise<string> {
+  if (creds.accessToken) return creds.accessToken;
   const key = cacheKey(creds, mode);
   const cached = tokens.get(key);
   if (cached && cached.expiresAt > Date.now() + 60_000) return cached.token;

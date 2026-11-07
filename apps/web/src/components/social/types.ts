@@ -166,6 +166,12 @@ export interface SocialAccountRow {
   hasCredentials: boolean;
   /** False for listening-only connections (a Reddit app stored without its owner's login). */
   canPost: boolean;
+  /** `oauth` for one-click connections, `keys` for pasted credentials, null when none are stored. */
+  authType: 'oauth' | 'keys' | null;
+  /** When the current token stops working, for tokens that expire. */
+  expiresAt: string | null;
+  /** True when the platform gave a refresh token, so expiry is handled automatically. */
+  refreshable: boolean;
   lastPostAt: string | null;
   lastError: string | null;
   lastTestedAt: string | null;
@@ -187,6 +193,27 @@ export interface PublisherInfoWire {
   credentialFields: PublisherFieldInfo[];
   configFields: PublisherFieldInfo[];
   capabilities: { original: boolean; reply: boolean; title: boolean; metrics: boolean; remove: boolean };
+}
+
+/** How an account on a platform gets connected from this screen. */
+export interface OAuthPlatformWire {
+  platform: SocialPlatformValue;
+  /** `oauth`: one click. `oauth-instance`: one click after naming the server. `form`: a short form. */
+  mode: 'oauth' | 'oauth-instance' | 'form';
+  /** False when the one-time developer app has not been set up yet. */
+  ready: boolean;
+}
+
+export interface DeveloperAppWire {
+  platform: SocialPlatformValue;
+  label: string;
+  configured: boolean;
+  source: 'settings' | 'env' | null;
+  clientIdPreview: string | null;
+  hasSecret: boolean;
+  redirectUri: string;
+  createUrl: string;
+  steps: string[];
 }
 
 export interface PlatformTextRulesWire {
@@ -254,6 +281,7 @@ export interface SocialOverview {
   communities: SocialCommunityRow[];
   accounts: SocialAccountRow[];
   publishers: PublisherInfoWire[];
+  oauth: { platforms: OAuthPlatformWire[]; developerApps: DeveloperAppWire[] };
   /** Platforms listening can search, and which of them need agent-reach. */
   listeningPlatforms: Array<{ platform: SocialPlatformValue; needsAgentReach: boolean }>;
   manualOnlyPlatforms: SocialPlatformValue[];
@@ -273,3 +301,28 @@ export const SOCIAL_SCHEDULE_LABELS: Record<string, { label: string; description
   'social-dispatch': { label: 'Publisher', description: 'Publishes approved posts when they fall due (every 15 minutes).' },
   'social-metrics': { label: 'Engagement', description: 'Reads likes, comments and score back twice a day.' },
 };
+
+/** One cell of the portfolio accounts matrix. Never carries a secret. */
+export interface MatrixAccountCell {
+  status: AccountStatusValue;
+  handle: string | null;
+  authType: 'oauth' | 'keys' | null;
+  expiresAt: string | null;
+  refreshable: boolean;
+  canPost: boolean;
+  lastError: string | null;
+  lastPostAt: string | null;
+}
+
+/** Every site × every publishing platform, for operators running many accounts. */
+export interface SocialAccountsMatrix {
+  platforms: Array<{ platform: SocialPlatformValue; label: string; mode: OAuthPlatformWire['mode']; ready: boolean }>;
+  sites: Array<{
+    id: string;
+    name: string;
+    domain: string;
+    accounts: Partial<Record<SocialPlatformValue, MatrixAccountCell>>;
+  }>;
+  developerApps: { configured: number; total: number };
+  totals: { connected: number; needsAttention: number };
+}

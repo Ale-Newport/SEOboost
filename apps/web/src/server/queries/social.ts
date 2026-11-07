@@ -6,9 +6,16 @@ import {
   AGENT_REACH_INSTALL_HINT,
   LISTENING_PLATFORMS,
   MANUAL_ONLY_PLATFORMS,
+  DEVELOPER_APP_GUIDES,
+  OAUTH_PROVIDERS,
   agentReachStatus,
   canPublishWith,
+  developerAppStatuses,
   getPublisher,
+  isDeveloperAppPlatform,
+  isOAuthPlatform,
+  oauthRedirectUri,
+  tokenState,
   listPublishers,
   manualPostUrl,
   needsAgentReach,
@@ -18,8 +25,12 @@ import { tryDecryptJson } from '@seo/shared/crypto';
 import { listSchedules } from '@seo/queue';
 import type {
   ConversationFilter,
+  OAuthPlatformWire,
+  DeveloperAppWire,
   ScoreFactorWire,
+  MatrixAccountCell,
   SocialAccountRow,
+  SocialAccountsMatrix,
   SocialAgentRunRow,
   SocialCommunityRow,
   SocialConversationRow,
@@ -373,7 +384,7 @@ export async function getSocialOverview(
     displayName: account.displayName,
     config: readConfig(account.config),
     hasCredentials: Boolean(account.credentials),
-    canPost: canPostWith(account.platform, account.credentials),
+    ...credentialFacts(account.platform, account.credentials),
     lastPostAt: iso(account.lastPostAt),
     lastError: account.lastError,
     lastTestedAt: iso(account.lastTestedAt),
@@ -430,6 +441,7 @@ export async function getSocialOverview(
     communities: communityRows,
     accounts: accountRows,
     publishers: listPublishers(),
+    oauth: await oauthOverview(),
     listeningPlatforms: LISTENING_PLATFORMS.map((platform: SocialPlatformValue) => ({
       platform,
       needsAgentReach: needsAgentReach(platform),
@@ -456,14 +468,107 @@ export async function getSocialOverview(
 }
 
 /**
- * Whether stored credentials allow writing, not just reading. Decrypted here and reduced to a
- * boolean so nothing secret leaves the server — a Reddit app connected without its owner's login
- * is listening-only and must not be offered as a posting account.
+ * What the screen may know about stored credentials: whether they can post, whether they came
+ * from one-click OAuth, and when they expire. Decrypted here and reduced to booleans and a date,
+ * so nothing secret leaves the server — a Reddit app connected without its owner's login is
+ * listening-only and must not be offered as a posting account.
  */
-function canPostWith(platform: SocialPlatformValue, credentials: string | null): boolean {
-  const decrypted = tryDecryptJson<Record<string, unknown>>(credentials);
-  if (!decrypted) return false;
-  const strings: Record<string, string> = {};
-  for (const [key, value] of Object.entries(decrypted)) if (typeof value === 'string') strings[key] = value;
-  return canPublishWith(platform, { credentials: strings, config: {} });
+function credentialFacts(
+  platform: SocialPlatformValue,
+  stored: string | null,
+): Pick<SocialAccountRow, 'canPost' | 'authType' | 'expiresAt' | 'refreshable'> {
+  const decrypted = tryDecryptJson<Record<string, unknown>>(stored);
+  if (!decrypted) return { canPost: false, authType: null, expiresAt: null, refreshable: false };
+  const credentials: Record<string, string> = {};
+  for (const [key, value] of Object.entries(decrypted)) if (typeof value === 'string') credentials[key] = value;
+  const state = tokenState(credentials);
+  return {
+    canPost: canPublishWith(platform, { credentials, config: {} }),
+    authType: state.kind === 'not-oauth' ? 'keys' : 'oauth',
+    expiresAt: state.kind === 'not-oauth' || !state.expiresAt ? null : state.expiresAt.toISOString(),
+    refreshable: Boolean(credentials.refreshToken),
+  };
+}
+
+/** One-click readiness per publishable platform, and the one-time developer apps behind it. */
+async function oauthOverview(): Promise<{ platforms: OAuthPlatformWire[]; developerApps: DeveloperAppWire[] }> {
+  const apps = await developerAppStatuses();
+  const platforms: OAuthPlatformWire[] = listPublishers().map(({ platform }) => {
+    if (!isOAuthPlatform(platform)) return { platform, mode: 'form', ready: true };
+    if (platform === 'MASTODON') return { platform, mode: 'oauth-instance', ready: true };
+    return { platform, mode: 'oauth', ready: apps.some((app) => app.platform === platform && app.configured) };
+  });
+  const developerApps: DeveloperAppWire[] = apps.flatMap((app) =>
+    isDeveloperAppPlatform(app.platform)
+      ? [
+          {
+            platform: app.platform,
+            label: OAUTH_PROVIDERS[app.platform].label,
+            configured: app.configured,
+            source: app.source,
+            clientIdPreview: app.clientIdPreview,
+            hasSecret: app.hasSecret,
+            redirectUri: oauthRedirectUri(app.platform),
+            createUrl: DEVELOPER_APP_GUIDES[app.platform].createUrl,
+            steps: DEVELOPER_APP_GUIDES[app.platform].steps,
+          },
+        ]
+      : [],
+  );
+  return { platforms, developerApps };
+}
+
+/**
+ * Every site the operator owns against every platform the app can post to — the one screen
+ * for keeping ten accounts healthy: what is connected, as whom, and what needs a reconnect.
+ */
+export async function getSocialAccountsMatrix(userId: string): Promise<SocialAccountsMatrix> {
+  const [websites, oauth] = await Promise.all([
+    prisma.website.findMany({
+      where: { userId, status: { not: 'ARCHIVED' } },
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        domain: true,
+        socialAccounts: {
+          select: {
+            platform: true, status: true, handle: true, credentials: true, lastError: true, lastPostAt: true,
+          },
+        },
+      },
+    }),
+    oauthOverview(),
+  ]);
+
+  let connected = 0;
+  let needsAttention = 0;
+  const sites = websites.map((website) => {
+    const accounts: Partial<Record<SocialPlatformValue, MatrixAccountCell>> = {};
+    for (const account of website.socialAccounts) {
+      if (!account.credentials && account.status === 'NOT_CONFIGURED') continue;
+      const facts = credentialFacts(account.platform, account.credentials);
+      accounts[account.platform] = {
+        status: account.status,
+        handle: account.handle,
+        lastError: account.lastError,
+        lastPostAt: iso(account.lastPostAt),
+        ...facts,
+      };
+      if (account.status === 'CONNECTED') connected++;
+      if (account.status === 'EXPIRED' || account.status === 'ERROR') needsAttention++;
+    }
+    return { id: website.id, name: website.name, domain: website.domain, accounts };
+  });
+
+  const labels = new Map(listPublishers().map((publisher) => [publisher.platform, publisher.label]));
+  return {
+    platforms: oauth.platforms.map((entry) => ({ ...entry, label: labels.get(entry.platform) ?? entry.platform })),
+    sites,
+    developerApps: {
+      configured: oauth.developerApps.filter((app) => app.configured).length,
+      total: oauth.developerApps.length,
+    },
+    totals: { connected, needsAttention },
+  };
 }

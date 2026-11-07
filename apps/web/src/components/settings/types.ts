@@ -46,6 +46,23 @@ export interface AiProviderInfo {
   builtIn: Record<ModelRoleKey, string | null>;
 }
 
+/** "Sign in with ChatGPT": the user's own Plus/Pro plan as the AI provider. Never carries a token. */
+export interface ChatGptConnectionInfo {
+  connected: boolean;
+  /** An app registration exists, even when signed out — the next sign-in re-authorises it. */
+  registered: boolean;
+  needsReauth: boolean;
+  planUsage: boolean;
+  email: string | null;
+  name: string | null;
+  models: Array<{ slug: string; displayName: string }>;
+  connectedAt: string | null;
+  lastError: string | null;
+  lastErrorCode: string | null;
+  lastErrorAt: string | null;
+  manageUsageUrl: string;
+}
+
 export interface AiDefaults {
   /** Operator-chosen provider (`ai.provider` app setting), or null to auto-select. */
   provider: string | null;

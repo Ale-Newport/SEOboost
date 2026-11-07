@@ -51,7 +51,10 @@ export function getPublisher(platform: SocialPlatformValue): SocialPublisher | n
  */
 export function canPublishWith(platform: SocialPlatformValue, secrets: SocialAccountSecrets): boolean {
   if (!getPublisher(platform)) return false;
-  if (platform === 'REDDIT') return Boolean(secrets.credentials.username?.trim() && secrets.credentials.password);
+  if (platform === 'REDDIT') {
+    const viaOAuth = secrets.credentials.authType === 'oauth2' && Boolean(secrets.credentials.accessToken || secrets.credentials.refreshToken);
+    return viaOAuth || Boolean(secrets.credentials.username?.trim() && secrets.credentials.password);
+  }
   return true;
 }
 

@@ -120,6 +120,25 @@ At least one enables the agents, content pipeline, GEO recommendations and AI vi
 one, crawling, the technical audit, scoring, internal-link suggestions and GEO scoring all still
 work — the agents that need reasoning report themselves as skipped and say why.
 
+### Recommended: Sign in with ChatGPT (no API key)
+
+**Settings → AI → Sign in with ChatGPT** connects your ChatGPT **Plus or Pro** plan through
+OpenAI's official [Sign in with ChatGPT](https://developers.openai.com/siwc) flow for
+self-hosted tools. Requests then run against your plan's allowance instead of a paid API key, and
+ChatGPT becomes the default provider.
+
+- Open the app at the address in `APP_URL` when you sign in: OpenAI only allows a loopback
+  callback (`http://127.0.0.1:<port>/api/ai/chatgpt/callback`), which the app sets up for you.
+- Usage counts against the weekly cap you choose for this app in ChatGPT under
+  [Settings → Usage](https://chatgpt.com/settings/usage). When the cap is reached, AI tasks pause
+  with a clear message instead of failing silently.
+- Embeddings are not part of plan usage: semantic features fall back to lexical similarity unless
+  an OpenAI or Gemini key is also set.
+- Tokens are stored encrypted and refreshed automatically; if OpenAI revokes the connection, the
+  card asks you to sign in again.
+
+### API keys (alternative)
+
 ```bash
 ANTHROPIC_API_KEY="sk-ant-…"      # console.anthropic.com
 OPENAI_API_KEY="sk-…"             # platform.openai.com
@@ -191,12 +210,29 @@ agent-reach add reddit        # login channels: reddit, twitter, …
 agent-reach login reddit      # you log in yourself, in its own browser window
 ```
 
+Without logging in, agent-reach already searches Reddit, YouTube, GitHub and V2EX through public
+routes. X, Facebook and Instagram search need a login in agent-reach's own browser.
+
 agent-reach is read-only and never logs in for you. Use a secondary account for its login
 channels; platforms may restrict accounts used for automated reading. If the binary is not on the
 worker's `PATH`, set `AGENT_REACH_BIN`.
 
 **Publishing** only ever uses a platform's official API with an account you connect at
-**Site → Social → Accounts**. Credentials are encrypted like every other integration.
+**Site → Social → Accounts**. Credentials are encrypted like every other integration. Each site
+gets one brand account per network; **Social accounts** in the main navigation shows every site ×
+network in one grid, so a portfolio of sites and accounts is managed from one screen.
+
+**One-click connect (OAuth).** Mastodon, Reddit, X, LinkedIn and Discord connect with a single
+"Connect" button: you approve on the network's own page and the app stores and refreshes the
+tokens. Mastodon needs nothing else. Reddit, X, LinkedIn and Discord need a developer app
+registered **once per installation** — the **One-time developer apps** card on the Accounts tab
+links to each portal, shows the exact redirect URI to paste (`${APP_URL}/api/social/oauth/<network>/callback`,
+so set `APP_URL` first) and stores the client id and secret encrypted. After that, every site and
+every account is one click. Bluesky, Telegram and Dev.to have no OAuth for this, so their cards
+link straight to the page where the app password, bot token or API key is created. Creating the
+accounts themselves (sign-up, email verification) is always done by you on each network.
+
+The table below is the manual "Use keys instead" path, still available on every card.
 
 | Platform | What to create | Notes |
 |---|---|---|
