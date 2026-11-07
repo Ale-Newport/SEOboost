@@ -33,6 +33,7 @@ const CATEGORY_LABEL: Record<Agent['category'], string> = {
   keywords: 'Keywords',
   geo: 'GEO',
   strategy: 'Strategy',
+  social: 'Social',
 };
 
 /** `123456` → `2m 3s`; short runs stay in seconds so the number is comparable at a glance. */

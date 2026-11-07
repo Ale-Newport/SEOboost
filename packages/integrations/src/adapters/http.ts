@@ -55,6 +55,17 @@ export class HttpTransportError extends Error {
   }
 }
 
+/**
+ * Some APIs carry the secret in the URL itself — Telegram's `/bot<token>/`, Discord's
+ * `/webhooks/<id>/<token>` — where the logger's key-based redaction cannot see it.
+ */
+export function redactUrlSecrets(url: string): string {
+  return url
+    .replace(/\/bot\d+:[\w-]+/g, '/bot[REDACTED]')
+    .replace(/(\/webhooks\/\d+\/)[\w-]+/g, '$1[REDACTED]')
+    .replace(/([?&](?:access_token|api_key|apikey|key|token)=)[^&]+/gi, '$1[REDACTED]');
+}
+
 export async function httpRequest(url: string, opts: HttpRequestOptions = {}): Promise<HttpResult> {
   const method = opts.method ?? 'GET';
   const target = withQuery(url, opts.query);
@@ -78,7 +89,7 @@ export async function httpRequest(url: string, opts: HttpRequestOptions = {}): P
       redirect: 'follow',
     });
   } catch (err) {
-    log.debug('request failed', { url: target, method, error: errorMessage(err) });
+    log.debug('request failed', { url: redactUrlSecrets(target), method, error: errorMessage(err) });
     throw new HttpTransportError(errorMessage(err), err);
   }
 
@@ -132,6 +143,11 @@ export function providerMessage(res: HttpResult, fallback = ''): string {
     if (Array.isArray(errors) && errors.length) return errors.map((e) => String(e)).join('; ');
   }
   if (fallback) return fallback;
+  // A block page, login wall or CDN error is HTML; quoting 300 characters of CSS helps nobody.
+  if (/^\s*</.test(res.text)) {
+    const title = res.text.match(/<title[^>]*>([^<]{1,120})<\/title>/i)?.[1]?.trim();
+    return `HTTP ${res.status}: the server answered with an HTML page${title ? ` ("${title}")` : ''} instead of JSON — usually a block page or a login wall`;
+  }
   return res.text.slice(0, 300) || `HTTP ${res.status}`;
 }
 

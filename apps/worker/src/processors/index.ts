@@ -43,6 +43,7 @@ import {
   serpFetch,
 } from './ai';
 import { maintenanceCleanup, notificationsDigest, reportsGenerate } from './maintenance';
+import { socialDispatch, socialMetrics } from './social';
 
 const log = createLogger('worker:processors');
 
@@ -88,6 +89,9 @@ export const ALL_HANDLERS: CompleteHandlerMap = {
 
   'actions.execute': actionsExecute,
   'actions.measure': actionsMeasure,
+
+  'social.dispatch': socialDispatch,
+  'social.metrics': socialMetrics,
 
   'reports.generate': reportsGenerate,
   'notifications.digest': notificationsDigest,

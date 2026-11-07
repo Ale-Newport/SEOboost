@@ -113,6 +113,11 @@ export const ACTION_RISK_BY_TYPE = {
   SUBMIT_URL_INDEXING: 'SAFE',
   GEO_IMPROVEMENT: 'SAFE',
   OUTREACH_DRAFT: 'SAFE',
+  // Public, under the operator's name, in someone else's community, and not cleanly undoable:
+  // a deleted reply has still been read and can still get the account banned.
+  SOCIAL_REPLY: 'HIGH',
+  // Our own channel, deletable, but still public the moment it lands.
+  SOCIAL_POST: 'MEDIUM',
   CUSTOM: 'HIGH',
 } as const;
 
@@ -124,6 +129,9 @@ export const ALWAYS_REQUIRES_APPROVAL = [
   'CREATE_REDIRECT',
   'CONSOLIDATE_PAGES',
   'CUSTOM',
+  // Replying in another community is the line between helpful participation and spam, and only
+  // a human reading the thread can tell which side a given reply is on.
+  'SOCIAL_REPLY',
 ] as const;
 
 export const AUTONOMY_DESCRIPTIONS = {
@@ -153,11 +161,12 @@ export const AUTONOMY_DESCRIPTIONS = {
   L4_HIGH_AUTONOMY: {
     label: 'Level 4 — High autonomy',
     description:
-      'The platform runs itself for everything reversible, including publishing content. Redirects, consolidations and custom actions still require approval.',
+      'The platform runs itself for everything reversible, including publishing content and posting on your own social channels. Redirects, consolidations, replies in other communities and custom actions still require approval.',
     autoExecutes: [
       'ADD_STRUCTURED_DATA', 'SUBMIT_URL_INDEXING', 'UPDATE_META_DESCRIPTION',
       'ADD_INTERNAL_LINKS', 'UPDATE_TITLE', 'FIX_TECHNICAL_ISSUE', 'CREATE_CONTENT_BRIEF',
       'UPDATE_CONTENT', 'PUBLISH_CONTENT', 'REFRESH_CONTENT', 'GEO_IMPROVEMENT', 'OUTREACH_DRAFT',
+      'SOCIAL_POST',
     ],
   },
 } as const;

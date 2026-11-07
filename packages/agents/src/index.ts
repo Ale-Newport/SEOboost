@@ -27,6 +27,10 @@ import './agents/ai-visibility-agent';
 import './agents/indexation-agent';
 import './agents/analytics-agent';
 import './agents/seo-manager-agent';
+import './agents/social-strategy-agent';
+import './agents/social-listening-agent';
+import './agents/social-engagement-agent';
+import './agents/social-content-agent';
 
 // Typed re-exports: import the definition when a caller wants one specific agent rather than a
 // registry lookup by name.
@@ -57,6 +61,11 @@ export { indexationAgent, reconcileIndexation, GOOGLE_INDEXING_REALITY } from '.
 export type { IndexationBuckets, ReconcilablePage } from './agents/indexation-agent';
 export { analyticsAgent } from './agents/analytics-agent';
 export { seoManagerAgent, planActionsToProposals } from './agents/seo-manager-agent';
+export { socialStrategyAgent } from './agents/social-strategy-agent';
+export { socialListeningAgent } from './agents/social-listening-agent';
+export { socialEngagementAgent } from './agents/social-engagement-agent';
+export { socialContentAgent } from './agents/social-content-agent';
+export * from './social/posts';
 export type { ConvertedAction, ConversionResult, PlanHorizon, PlanItem } from './agents/seo-manager-agent';
 
 // Shared agent plumbing, exported so the worker and API layer can build the same typed results.

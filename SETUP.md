@@ -172,6 +172,49 @@ Ahrefs, Semrush and Majestic column layouts.
 | **Webhook** | Endpoint URL + shared secret | Receives HMAC-SHA256 signed change requests. Reference verification code ships in `packages/integrations/src/adapters/webhook.ts`. |
 | **Shopify / Webflow** | Admin API token | Partial support; each adapter declares its real capabilities rather than failing at apply time. |
 
+### Social listening and publishing
+
+**Site → Social** finds public conversations about the problem a site solves, drafts helpful
+replies for you to approve, and posts daily to accounts you own. Read
+[ADR 0006](docs/adr/0006-social-outreach.md) for the rules it follows.
+
+**Listening** works out of the box for Reddit (public JSON, or the API once a Reddit app is
+connected), Hacker News (Algolia) and Bluesky. To also search X, YouTube, GitHub, Instagram,
+Facebook and V2EX, install [agent-reach](https://github.com/Panniantong/agent-reach) on the
+machine that runs the worker:
+
+```bash
+# Follow the project's own installer — the PyPI package called "agent-reach" is unrelated.
+# https://raw.githubusercontent.com/Panniantong/Agent-Reach/main/docs/install.md
+agent-reach version           # the Social page shows the same status
+agent-reach add reddit        # login channels: reddit, twitter, …
+agent-reach login reddit      # you log in yourself, in its own browser window
+```
+
+agent-reach is read-only and never logs in for you. Use a secondary account for its login
+channels; platforms may restrict accounts used for automated reading. If the binary is not on the
+worker's `PATH`, set `AGENT_REACH_BIN`.
+
+**Publishing** only ever uses a platform's official API with an account you connect at
+**Site → Social → Accounts**. Credentials are encrypted like every other integration.
+
+| Platform | What to create | Notes |
+|---|---|---|
+| **Reddit** | A *script* app at reddit.com/prefs/apps (client id + secret), plus the account's username and password | Replies and original posts. List the subreddits you own under "Communities you own" — posting anywhere else always needs approval. |
+| **Bluesky** | An app password (Settings → Privacy and security → App passwords) | Never your account password. Posts, replies, metrics. |
+| **Mastodon** | An access token with `write:statuses read:statuses` from your instance's Development settings | Posts, replies, metrics. |
+| **X** | A developer app with OAuth 1.0a user tokens (API key/secret + access token/secret) | Posting needs at least X's free write tier; metrics need a paid tier and are skipped quietly otherwise. |
+| **LinkedIn** | An access token with `w_member_social` (or `w_organization_social`) and your author URN | Original posts only. |
+| **Dev.to** | An API key (Settings → Extensions) | Cross-posts articles with `canonical_url` pointing at your site. |
+| **Telegram** | A bot token from @BotFather, added as an admin of your channel | Original posts only. |
+| **Discord** | A channel webhook URL | Original posts only. |
+| **Hacker News** | — | No posting API: approved items become "post by hand" with a prefilled submit link. |
+
+Turn on **Settings → Automation** on the Social page to schedule listening every 4 hours, reply
+drafting after each listen, daily post planning, a publisher sweep every 15 minutes and metrics
+twice a day. Replies in other communities always wait for your approval; posts on your own
+channels publish without approval only when the site runs at autonomy Level 4.
+
 ---
 
 ## 7. JS rendering (optional)

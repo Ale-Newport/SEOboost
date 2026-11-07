@@ -24,7 +24,11 @@ export type AgentName =
   | 'AIVisibilityAgent'
   | 'IndexationAgent'
   | 'AnalyticsAgent'
-  | 'SEOManagerAgent';
+  | 'SEOManagerAgent'
+  | 'SocialStrategyAgent'
+  | 'SocialListeningAgent'
+  | 'SocialEngagementAgent'
+  | 'SocialContentAgent';
 
 export interface AgentContext {
   websiteId: string;

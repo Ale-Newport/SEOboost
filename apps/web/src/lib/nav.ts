@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   Activity, BarChart3, Bot, Boxes, Braces, CalendarDays, CheckSquare, Compass, FileText,
-  Gauge, Globe, History, KeyRound, LayoutDashboard, Library, Link2, ListChecks, Network,
+  Gauge, Globe, History, KeyRound, LayoutDashboard, Library, Link2, ListChecks, MessagesSquare, Network,
   Search, Settings, Sparkles, Target, TrendingUp, Users, Wrench,
 } from 'lucide-react';
 
@@ -59,6 +59,7 @@ export function siteNav(websiteId: string): Array<{ section: string; items: NavI
         { href: `${base}/opportunities`, label: 'Opportunities', icon: Target },
         { href: `${base}/content`, label: 'Content', icon: FileText },
         { href: `${base}/competitors`, label: 'Competitors', icon: Users },
+        { href: `${base}/social`, label: 'Social', icon: MessagesSquare },
         { href: `${base}/strategy`, label: 'AI SEO Manager', icon: Bot },
       ],
     },

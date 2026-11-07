@@ -108,6 +108,7 @@ The Prisma schema is the contract. Highlights:
 | Links | `InternalLinkSuggestion` | |
 | Machine readability | `StructuredDataItem`, `Entity`, `EntityRelationship`, `GeoAudit`, `GeoPageAudit` | |
 | AI search | `AiVisibilityPrompt`, `AiVisibilityRun`, `AiVisibilityMention` | |
+| Social | `SocialAccount`, `SocialTopic`, `SocialConversation`, `SocialCommunity`, `SocialPost` | Accounts encrypted like integrations; every post is linked to the `SeoAction` that approved it. |
 | Automation | `SeoAction`, `ActionExecution`, `Approval`, `Experiment`, `ChangeLog` | The full propose → approve → execute → measure trail. |
 | Operations | `AgentRun`, `AiUsage`, `JobRecord`, `ScheduledJob`, `Report`, `Notification`, `ScoreSnapshot`, `StrategyPlan` | |
 | Vectors | `EmbeddingRecord` | `Float[]` with exact in-process cosine search; see ADR-0003 for the pgvector path. |
@@ -232,6 +233,13 @@ robots.txt blocking are not automatable at all.
 Every change writes an `ActionExecution` and a `ChangeLog` entry with before/after state and
 rollback data, then opens an `Experiment` so the result is measured rather than assumed.
 
+Social posts follow the same path with one difference in each direction: `SOCIAL_REPLY` (anything
+posted into a community the operator does not own) is in `ALWAYS_REQUIRES_APPROVAL`, and no
+`Experiment` is opened because a post is not a change to the site. Four agents (strategy,
+listening, replies, daily posts) sit on read-only listening through agent-reach and native APIs,
+a pure guardrail layer in `seo-engine/src/social`, and official-API publishers. See
+`docs/adr/0006-social-outreach.md`.
+
 ---
 
 ## 9. Jobs and scheduling
@@ -291,3 +299,5 @@ See `docs/adr/`. Summary:
 - **0004 — Custom auth over NextAuth.** Single-user-first, one dependency fewer, full control of
   session revocation and CSRF; the `User`/`Session` tables are shaped for future multi-user.
 - **0005 — Durable JobRecord mirror.** The Jobs UI must be truthful when Redis is unavailable.
+- **0006 — Social: participate, never astroturf.** Read through agent-reach and native APIs; write
+  only through official APIs; replies in other communities always need a human.

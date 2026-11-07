@@ -25,6 +25,7 @@ shaped so it could become one.
 | **Internal links** | PageRank over your link graph, orphan detection, natural-placement anchor suggestions, and anchor over-optimisation auditing. |
 | **GEO** | Eleven measurable dimensions of machine readability, scored per page and per site, with entity graph extraction and structured-data generation. |
 | **AI visibility** | Tracks whether assistants mention and cite you, through official provider APIs — with a manual import path for those that cannot be queried. |
+| **Social** | Listens on Reddit, Hacker News, Bluesky and — through [agent-reach](https://github.com/Panniantong/agent-reach) — X, YouTube, GitHub and more for people describing the problem a site solves; scores each thread, reads the community's own rules, drafts a helpful, disclosed reply for you to approve, and plans daily posts for the accounts you own (Reddit, Bluesky, Mastodon, X, LinkedIn, Dev.to, Telegram, Discord), with engagement read back. |
 | **Automation** | Five autonomy levels, a hard guardrail on risky actions, an approval queue with diffs, CMS adapters (WordPress, Git/GitHub, webhook, Shopify, Webflow), and a full change log with rollback data. |
 | **Learning** | Every applied change opens an experiment. Welch's t-test over daily series, a settling window and an effect-size floor produce *likely positive / inconclusive / likely negative* — never a causal claim — and the results adjust future prioritisation. |
 
@@ -88,6 +89,7 @@ Everything else is optional and the product degrades honestly without it:
 | `BING_API_KEY` | Bing data and URL submission | Bing panels marked not configured |
 | `DATAFORSEO_*` / `SERPAPI_KEY` / `SERPER_API_KEY` | Search volume, difficulty, SERP snapshots, competitor discovery | Keyword data comes from Search Console; scores say so explicitly |
 | `AHREFS_API_KEY` / `SEMRUSH_API_KEY` / `MOZ_*` | Live backlink data | CSV import still works |
+| `AGENT_REACH_BIN` (agent-reach installed) | Listening on X, YouTube, GitHub, Instagram, Facebook, V2EX | Reddit, Hacker News and Bluesky are still read natively |
 
 **Never change `ENCRYPTION_KEY` after connecting an integration** — stored credentials become
 unreadable and must be reconnected.
@@ -139,13 +141,17 @@ No mass backlink building, spam comments, fake reviews, cloaking, hidden text, d
 fake traffic or engagement, parasite SEO, scaled low-quality page generation, scraping behind
 logins, automated spam outreach, fabricated authors, fake citations or invented credentials.
 
-Three concrete consequences you will see in the code:
+Four concrete consequences you will see in the code:
 
 - The content decision engine returns `NO_ACTION` or `IMPROVE_EXISTING_PAGE` far more often than
   it proposes a new page.
 - FAQ, Review and AggregateRating schema is only generated from content that is genuinely on the
   page; the generator refuses and tells you why when it is not.
 - The fact-check stage marks unverifiable claims for review instead of inventing a source.
+- Social replies in other people's communities are never posted without your approval, at any
+  autonomy level. Every reply that names the product must disclose the affiliation, one reply per
+  thread, a few per day, none where the community's rules forbid promotion, no sock puppets and no
+  browser automation — publishing uses official APIs and your own accounts only.
 
 ---
 

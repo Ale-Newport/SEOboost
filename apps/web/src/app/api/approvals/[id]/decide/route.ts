@@ -51,6 +51,18 @@ export const POST = route<{ id: string }>(async ({ user, request, params }) => {
         where: { id: approval.actionId },
         data: { status: ActionStatus.REJECTED },
       });
+      // A rejected social draft is closed too, and its thread goes back to the shortlist so a
+      // human can still answer it another way.
+      const post = await tx.socialPost.findUnique({
+        where: { actionId: approval.actionId },
+        select: { id: true, conversationId: true },
+      });
+      if (post) {
+        await tx.socialPost.update({ where: { id: post.id }, data: { status: 'REJECTED' } });
+        if (post.conversationId) {
+          await tx.socialConversation.update({ where: { id: post.conversationId }, data: { status: 'SHORTLISTED' } });
+        }
+      }
       return;
     }
 
@@ -73,6 +85,12 @@ export const POST = route<{ id: string }>(async ({ user, request, params }) => {
         error: null,
         payload: json(mergedPayload),
       },
+    });
+    // The executor copies the approved text onto the post; the status flips here so the Social
+    // screen is right even before the worker picks the job up (or when Redis is down).
+    await tx.socialPost.updateMany({
+      where: { actionId: approval.actionId, status: { in: ['DRAFT', 'AWAITING_APPROVAL'] } },
+      data: { status: 'APPROVED' },
     });
   });
 

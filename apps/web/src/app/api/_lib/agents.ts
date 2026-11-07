@@ -21,7 +21,7 @@ export interface AgentCatalogueEntry {
   description: string;
   /** Does the agent need a configured AI provider to produce anything? */
   requiresAi: boolean;
-  category: 'technical' | 'content' | 'keywords' | 'geo' | 'strategy';
+  category: 'technical' | 'content' | 'keywords' | 'geo' | 'strategy' | 'social';
 }
 
 const CATALOGUE: { readonly [K in AgentName]: Omit<AgentCatalogueEntry, 'name'> } = {
@@ -128,6 +128,38 @@ const CATALOGUE: { readonly [K in AgentName]: Omit<AgentCatalogueEntry, 'name'> 
       'The orchestrator: reviews every signal for a site and produces the today / this week / this month plan.',
     requiresAi: true,
     category: 'strategy',
+  },
+  SocialStrategyAgent: {
+    key: 'social-strategy',
+    label: 'Social strategy',
+    description:
+      'Proposes listening topics in your audience\'s own words, communities to watch and content pillars for your own channels.',
+    requiresAi: true,
+    category: 'social',
+  },
+  SocialListeningAgent: {
+    key: 'social-listening',
+    label: 'Social listening',
+    description:
+      'Finds conversations about the problem your site solves on Reddit, Hacker News, Bluesky and (via agent-reach) X, YouTube and more; reads community rules and shortlists threads worth answering.',
+    requiresAi: false,
+    category: 'social',
+  },
+  SocialEngagementAgent: {
+    key: 'social-engagement',
+    label: 'Social replies',
+    description:
+      'Drafts helpful, disclosed replies to shortlisted threads within anti-spam caps. Every reply waits for your approval.',
+    requiresAi: true,
+    category: 'social',
+  },
+  SocialContentAgent: {
+    key: 'social-content',
+    label: 'Daily social posts',
+    description:
+      'Plans and writes today\'s posts for your connected accounts from new and proven pages, and schedules them.',
+    requiresAi: false,
+    category: 'social',
   },
 };
 

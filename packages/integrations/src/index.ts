@@ -27,3 +27,6 @@ export * from './backlinks/index';
 
 // Website adapters — the layer that deploys approved changes (WordPress, Git, webhook, Shopify, Webflow).
 export * from './adapters/index';
+
+// Social: read-only listening (agent-reach + native readers) and official-API publishers.
+export * from './social/index';
