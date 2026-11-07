@@ -45,6 +45,7 @@ import {
 import { effectiveSettings, loadWebsite } from '../lib/website';
 import { loadDailySeries } from '../lib/gsc';
 import { skip } from '../lib/result';
+import { executeSocialAction, SOCIAL_ACTION_TYPES } from './social';
 
 const log = createLogger('worker:actions');
 
@@ -148,6 +149,16 @@ export const actionsExecute: JobHandler<'actions.execute'> = async ({ payload, c
   }
 
   await ctx.updateProgress(10, 'Checking the guardrail');
+
+  // Social posts publish to a platform, not the site: same guardrail, different executor, and no
+  // Search Console experiment (see processors/social.ts).
+  if (SOCIAL_ACTION_TYPES.has(action.type)) {
+    return executeSocialAction(action, {
+      ...(payload.approvalId ? { approvalId: payload.approvalId } : {}),
+      dryRun: payload.dryRun ?? false,
+      ctx,
+    });
+  }
 
   // ── 1. guardrail, re-evaluated from current settings ─────
   const guard = canAutoExecute({

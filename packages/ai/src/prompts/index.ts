@@ -36,6 +36,7 @@ import './templates/site-summary';
 import './templates/page-analysis';
 import './templates/outreach-draft';
 import './templates/schema-suggestion';
+import './templates/social';
 
 // Typed re-exports: import the template const when the caller knows its variable shape and
 // wants `render()` to be type-checked.
@@ -99,6 +100,20 @@ export { outreachDraftPrompt } from './templates/outreach-draft';
 export type { OutreachDraftVars } from './templates/outreach-draft';
 export { schemaSuggestionPrompt } from './templates/schema-suggestion';
 export type { SchemaSuggestionVars } from './templates/schema-suggestion';
+export {
+  COMMUNITY_RULES,
+  socialStrategyPrompt,
+  socialTriagePrompt,
+  socialReplyDraftPrompt,
+  socialPostDraftPrompt,
+} from './templates/social';
+export type {
+  SocialStrategyVars,
+  SocialTriageVars,
+  SocialTriageConversation,
+  SocialReplyDraftVars,
+  SocialPostDraftVars,
+} from './templates/social';
 
 /** Every prompt id this package ships, for exhaustiveness checks in tests and the UI. */
 export const PROMPT_IDS = [
@@ -127,6 +142,10 @@ export const PROMPT_IDS = [
   'page-analysis',
   'outreach-draft',
   'schema-suggestion',
+  'social-strategy',
+  'social-conversation-triage',
+  'social-reply-draft',
+  'social-post-draft',
 ] as const;
 
 export type PromptId = (typeof PROMPT_IDS)[number];

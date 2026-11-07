@@ -37,3 +37,6 @@ export * from './experiments/evaluate';
 
 // Portfolio intelligence
 export * from './portfolio/intelligence';
+
+// Social listening & publishing
+export * from './social';

@@ -159,6 +159,11 @@ model Website {
   serpSnapshots      SerpSnapshot[]
   rankings           Ranking[]
   strategyPlans      StrategyPlan[]
+  socialAccounts     SocialAccount[]
+  socialTopics       SocialTopic[]
+  socialConversations SocialConversation[]
+  socialCommunities  SocialCommunity[]
+  socialPosts        SocialPost[]
 
   @@unique([userId, domain])
   @@index([userId, status])
@@ -207,6 +212,17 @@ model WebsiteSettings {
   ctrOpportunityMinImpressions Int @default(100)
   strikingDistanceMin Float @default(8)
   strikingDistanceMax Float @default(20)
+
+  // social outreach guardrails (see docs/adr/0006-social-outreach.md)
+  /// Original posts per connected account per day. Replies are capped separately.
+  socialDailyPostLimit  Int     @default(1)
+  /// Replies in other people's threads per day, across every platform.
+  socialDailyReplyLimit Int     @default(3)
+  /// Share of the last 30 days' social activity allowed to carry a link to our site.
+  socialMaxPromoRatio   Float   @default(0.25)
+  /// Affiliation sentence every promotional reply must contain ("I build X").
+  socialDisclosure      String?
+  socialUtmCampaign     String  @default("social")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1483,6 +1499,8 @@ enum ActionType {
   SUBMIT_URL_INDEXING
   GEO_IMPROVEMENT
   OUTREACH_DRAFT
+  SOCIAL_REPLY
+  SOCIAL_POST
   CUSTOM
 }
 
@@ -1549,6 +1567,7 @@ model SeoAction {
   approvals  Approval[]
   experiment Experiment?
   changeLogs ChangeLog[]
+  socialPost SocialPost?
 
   @@index([websiteId, status, priorityScore])
   @@index([websiteId, type])
@@ -1920,6 +1939,235 @@ model StrategyPlan {
   website Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
 
   @@index([websiteId, createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Social listening & publishing
+// ─────────────────────────────────────────────────────────────
+
+/// Where a conversation was found or a post is published. Listening-only platforms
+/// (read through agent-reach) are in the same enum so one inbox covers them all.
+enum SocialPlatform {
+  REDDIT
+  HACKER_NEWS
+  X
+  BLUESKY
+  MASTODON
+  LINKEDIN
+  DEVTO
+  TELEGRAM
+  DISCORD
+  YOUTUBE
+  GITHUB
+  FACEBOOK
+  INSTAGRAM
+  V2EX
+}
+
+enum SocialConversationStatus {
+  NEW
+  SHORTLISTED
+  DRAFTED
+  REPLIED
+  DISMISSED
+  EXPIRED
+}
+
+enum SocialPostKind {
+  /// A reply inside someone else's thread. Always needs a human, at every autonomy level.
+  REPLY
+  /// A post on a channel we own (our profile, page, channel or subreddit).
+  ORIGINAL
+}
+
+enum SocialPostStatus {
+  DRAFT
+  AWAITING_APPROVAL
+  APPROVED
+  SCHEDULED
+  PUBLISHING
+  PUBLISHED
+  /// Approved, but the platform has no write API (or no account): a human posts it by hand.
+  MANUAL_PENDING
+  FAILED
+  REJECTED
+  CANCELLED
+}
+
+/// What a community's own rules say about linking your own product.
+enum CommunityPromotionPolicy {
+  ALLOWED
+  RESTRICTED
+  FORBIDDEN
+  UNKNOWN
+}
+
+/// An account the operator owns and has connected for publishing. One per platform per site.
+model SocialAccount {
+  id        String            @id @default(cuid())
+  websiteId String
+  platform  SocialPlatform
+  status    IntegrationStatus @default(NOT_CONFIGURED)
+
+  handle       String?
+  displayName  String?
+  /// AES-256-GCM encrypted JSON credential envelope. Never returned to the client.
+  credentials  String?
+  /// Non-secret settings (instance URL, chat id, author URN, default subreddit…).
+  config       Json      @default("{}")
+  lastPostAt   DateTime?
+  lastError    String?
+  lastTestedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  website Website      @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  posts   SocialPost[]
+
+  @@unique([websiteId, platform])
+}
+
+/// A problem or need to listen for, phrased the way the audience would say it.
+model SocialTopic {
+  id        String @id @default(cuid())
+  websiteId String
+
+  name             String
+  query            String
+  /// Extra terms that make a match more relevant (any of them).
+  keywords         String[]         @default([])
+  /// A conversation containing any of these is dropped before scoring.
+  negativeKeywords String[]         @default([])
+  platforms        SocialPlatform[] @default([REDDIT, HACKER_NEWS])
+  /// Limits Reddit (and similar) searches to these communities; empty = site-wide search.
+  communities      String[]         @default([])
+  /// problem | brand | competitor — changes how matches are scored and handled.
+  kind             String           @default("problem")
+  isActive         Boolean          @default(true)
+  source           String           @default("manual")
+  lastRunAt        DateTime?
+  lastResultCount  Int?
+  lastError        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  website       Website              @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  conversations SocialConversation[]
+
+  @@unique([websiteId, query])
+  @@index([websiteId, isActive])
+}
+
+/// A public thread found by listening. Stored once per site; re-discovery refreshes it.
+model SocialConversation {
+  id        String  @id @default(cuid())
+  websiteId String
+  topicId   String?
+
+  platform     SocialPlatform
+  externalId   String
+  url          String
+  title        String?
+  body         String?
+  author       String?
+  community    String?
+  publishedAt  DateTime?
+  score        Int?
+  commentCount Int?
+  isLocked     Boolean        @default(false)
+
+  /// seeking-recommendation | problem | comparison | competitor-mention | brand-mention | discussion
+  intent           String                   @default("discussion")
+  relevanceScore   Float                    @default(0)
+  relevanceFactors Json                     @default("{}")
+  /// The model's read of the thread: fit, suggested approach, why — null until triaged.
+  triage           Json?
+  status           SocialConversationStatus @default(NEW)
+  /// Which reader found it: agent-reach, reddit-api, reddit-public, hn-algolia, bluesky.
+  backend          String
+
+  discoveredAt  DateTime @default(now())
+  lastCheckedAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  website Website      @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  topic   SocialTopic? @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  posts   SocialPost[]
+
+  @@unique([websiteId, platform, externalId])
+  @@index([websiteId, status, relevanceScore])
+  @@index([websiteId, discoveredAt])
+}
+
+/// A community (subreddit, forum…) and what its rules allow. Checked before any reply.
+model SocialCommunity {
+  id        String @id @default(cuid())
+  websiteId String
+
+  platform        SocialPlatform
+  name            String
+  title           String?
+  subscribers     Int?
+  promotionPolicy CommunityPromotionPolicy @default(UNKNOWN)
+  rulesSummary    String?
+  rules           Json                     @default("[]")
+  /// Operator decision: never post or reply here, whatever the rules say.
+  isBlocked       Boolean                  @default(false)
+  notes           String?
+  lastCheckedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  website Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  @@unique([websiteId, platform, name])
+}
+
+/// Anything we publish (or plan to): a reply in a thread or an original post on our channel.
+model SocialPost {
+  id             String  @id @default(cuid())
+  websiteId      String
+  accountId      String?
+  conversationId String?
+  /// The SeoAction that carries approval, autonomy and the change log for this post.
+  actionId       String? @unique
+  pageId         String?
+
+  kind         SocialPostKind
+  platform     SocialPlatform
+  status       SocialPostStatus @default(DRAFT)
+  community    String?
+  title        String?
+  body         String
+  /// Our URL as shared (with UTM parameters); null for a link-free reply.
+  linkUrl      String?
+  includesLink Boolean          @default(false)
+  disclosure   String?
+  generatedBy  String?
+
+  scheduledFor     DateTime?
+  publishedAt      DateTime?
+  externalId       String?
+  externalUrl      String?
+  /// Latest engagement snapshot from the platform: score, comments, reposts, likes…
+  metrics          Json      @default("{}")
+  metricsCheckedAt DateTime?
+  error            String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  website      Website             @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  account      SocialAccount?      @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  conversation SocialConversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  action       SeoAction?          @relation(fields: [actionId], references: [id], onDelete: SetNull)
+
+  @@index([websiteId, status, scheduledFor])
+  @@index([websiteId, platform, publishedAt])
 }
 
 // ─────────────────────────────────────────────────────────────

@@ -23,6 +23,8 @@ export interface ModelPrice {
 }
 
 export const PRICING: Record<ProviderName, Record<string, ModelPrice>> = {
+  // Plan usage is covered by the user's ChatGPT subscription, not billed per token.
+  chatgpt: {},
   anthropic: {
     'claude-opus-5': { input: 5, output: 25 },
     'claude-sonnet-5': { input: 3, output: 15 },
@@ -85,6 +87,7 @@ export function estimateCost(
   tokensIn: number,
   tokensOut: number,
 ): number {
+  if (provider === 'chatgpt') return 0;
   const price = lookup(provider, model);
   if (!price) {
     const key = `${provider}:${model}`;

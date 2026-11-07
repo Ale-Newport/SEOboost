@@ -283,6 +283,19 @@ export interface JobPayloads {
     minDaysSinceExecution?: number;
   };
 
+  // ── Social ──────────────────────────────────────────────────
+  'social.dispatch': {
+    /** Sweep one site; omit to sweep every site with a due post. */
+    websiteId?: string;
+    /** Publish exactly this post (it must already be approved and due). */
+    postId?: string;
+  };
+  'social.metrics': {
+    websiteId: string;
+    /** Only posts published within this many days are refreshed. */
+    lookbackDays?: number;
+  };
+
   // ── Reporting & notifications ───────────────────────────────
   'reports.generate': {
     /** Null/absent for a portfolio-wide report spanning every site the user owns. */
@@ -371,6 +384,10 @@ export const JOB_QUEUE: { readonly [K in JobName]: QueueName } = {
 
   'actions.execute': 'actions',
   'actions.measure': 'actions',
+
+  // Publishing is a mutation to a live, public property; reading engagement is a vendor API call.
+  'social.dispatch': 'actions',
+  'social.metrics': 'sync',
 
   'reports.generate': 'maintenance',
   'notifications.digest': 'maintenance',

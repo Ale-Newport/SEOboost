@@ -7,7 +7,17 @@ import { NextResponse, type NextRequest } from 'next/server';
  * happens in `getCurrentUser()` on the Node runtime. This keeps the middleware fast and free of
  * Node-only dependencies while still bouncing anonymous visitors to the login page.
  */
-const PUBLIC_PATHS = ['/login', '/signup', '/api/auth', '/api/health', '/api/integrations/google/callback'];
+const PUBLIC_PATHS = [
+  '/login',
+  '/signup',
+  '/api/auth',
+  '/api/health',
+  '/api/integrations/google/callback',
+  // Arrives on 127.0.0.1 without the session cookie; authenticated by its single-use state.
+  '/api/ai/chatgpt/callback',
+];
+
+const SOCIAL_OAUTH_CALLBACK = /^\/api\/social\/oauth\/[a-z-]+\/callback$/;
 
 export function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
@@ -15,6 +25,9 @@ export function middleware(request: NextRequest) {
   if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
     return NextResponse.next();
   }
+  // Social OAuth callbacks are authenticated by their single-use state + binding cookie, not the
+  // session: a platform's consent page can outlast a session. `/start` stays behind the session.
+  if (SOCIAL_OAUTH_CALLBACK.test(pathname)) return NextResponse.next();
 
   const hasSession = request.cookies.has('seo_os_session');
   if (hasSession) return NextResponse.next();

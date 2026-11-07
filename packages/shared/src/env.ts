@@ -133,6 +133,54 @@ export const env = {
     return str('SAMPLE_CRAWL_URL');
   },
 
+  // ── Social listening & publishing ─────────────────────────
+  /** agent-reach CLI (https://github.com/Panniantong/agent-reach). Read-only; absent → native readers only. */
+  get agentReachBin(): string {
+    return str('AGENT_REACH_BIN', 'agent-reach')!;
+  },
+  get agentReachTimeoutMs(): number {
+    return num('AGENT_REACH_TIMEOUT_MS', 90_000);
+  },
+  /** Comma-separated agent-reach channels the platform may call; empty → every supported one. */
+  get agentReachChannels(): string[] {
+    return (str('AGENT_REACH_CHANNELS') ?? '')
+      .split(',')
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean);
+  },
+  /** Reddit's API terms require a descriptive user agent; the default names this installation. */
+  get socialUserAgent(): string {
+    return str('SOCIAL_USER_AGENT', `seo-os:social-listening:1.0 (+${this.appUrl})`)!;
+  },
+  /**
+   * One-time developer apps for one-click account connection. Optional: they can also be entered
+   * in the UI (Social → Accounts), which stores them encrypted and wins over these.
+   */
+  get redditClientId(): string | undefined {
+    return str('REDDIT_CLIENT_ID');
+  },
+  get redditClientSecret(): string | undefined {
+    return str('REDDIT_CLIENT_SECRET');
+  },
+  get xClientId(): string | undefined {
+    return str('X_CLIENT_ID');
+  },
+  get xClientSecret(): string | undefined {
+    return str('X_CLIENT_SECRET');
+  },
+  get linkedinClientId(): string | undefined {
+    return str('LINKEDIN_CLIENT_ID');
+  },
+  get linkedinClientSecret(): string | undefined {
+    return str('LINKEDIN_CLIENT_SECRET');
+  },
+  get discordClientId(): string | undefined {
+    return str('DISCORD_CLIENT_ID');
+  },
+  get discordClientSecret(): string | undefined {
+    return str('DISCORD_CLIENT_SECRET');
+  },
+
   // ── Worker ────────────────────────────────────────────────
   get workerConcurrency(): number {
     return num('WORKER_CONCURRENCY', 4);

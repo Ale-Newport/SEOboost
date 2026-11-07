@@ -18,6 +18,7 @@ import { TooltipInfo } from '@/components/ui/tooltip-info';
 import { TimeSeriesChart } from '@/components/charts/time-series-chart';
 import { apiPatch, apiPost, ApiError } from '@/lib/api-client';
 import { formatCompact, formatNumber, formatUsd } from '@/lib/utils';
+import { ChatGptCard } from './chatgpt-card';
 import { MODEL_ROLE_COPY, MODEL_ROLE_KEYS, type ModelRoleKey } from './types';
 import type { GlobalSettings } from '@/server/queries/settings';
 
@@ -31,7 +32,9 @@ const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'destructive' | 'se
 
 export function GlobalSettingsView({ settings }: { settings: GlobalSettings }) {
   const router = useRouter();
-  const { providers, defaults, budget, usage, integrations, environmentKeys, system } = settings;
+  const { chatgpt, providers, defaults, budget, usage, integrations, environmentKeys, system } = settings;
+  // The ChatGPT plan has its own card (it is a sign-in, not an environment key).
+  const keyProviders = providers.filter((p) => p.name !== 'chatgpt');
 
   const [provider, setProvider] = useState<string>(defaults.provider ?? '');
   const [models, setModels] = useState<Record<ModelRoleKey, string>>({
@@ -97,12 +100,15 @@ export function GlobalSettingsView({ settings }: { settings: GlobalSettings }) {
           <Alert variant="warning" title="No AI provider is configured">
             Crawling, the technical audit, scoring, internal-link suggestions and GEO scoring all
             work without one. Agents, content generation, GEO recommendations and AI-visibility
-            tracking need at least one key. Set any of the variables listed below and restart.
+            tracking need a provider: sign in with ChatGPT below, or set one of the API-key
+            variables listed after it and restart.
           </Alert>
         )}
 
+        <ChatGptCard chatgpt={chatgpt} canAdminister={system.canAdminister && !system.readOnly} />
+
         <div className="grid gap-3 md:grid-cols-3">
-          {providers.map((entry) => (
+          {keyProviders.map((entry) => (
             <Card key={entry.name}>
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center justify-between text-sm">
@@ -156,7 +162,7 @@ export function GlobalSettingsView({ settings }: { settings: GlobalSettings }) {
                 {providers.map((entry) => (
                   <option key={entry.name} value={entry.name} disabled={!entry.configured}>
                     {entry.label}
-                    {entry.configured ? '' : ' — key missing'}
+                    {entry.configured ? '' : entry.name === 'chatgpt' ? ' — not signed in' : ' — key missing'}
                   </option>
                 ))}
               </select>

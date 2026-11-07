@@ -136,9 +136,10 @@ export function StepAiProvider({
           <Alert variant="warning">
             <AlertTitle>No AI provider is configured</AlertTitle>
             <AlertDescription>
-              Set one of the keys below in the environment and restart the app. Until then the
-              agents, content pipeline and AI-visibility screens will say they are unavailable
-              rather than produce output.
+              Use &ldquo;Sign in with ChatGPT&rdquo; in Settings → AI providers to run on your
+              ChatGPT plan, or set one of the keys below in the environment and restart the app.
+              Until then the agents, content pipeline and AI-visibility screens will say they are
+              unavailable rather than produce output.
             </AlertDescription>
           </Alert>
         ) : (
@@ -158,7 +159,11 @@ export function StepAiProvider({
                     <CircleCheck className="size-3.5 text-success" aria-hidden="true" />
                   </span>
                 }
-                description={`Key found in ${provider.envVar || 'the environment'}. Individual sites can override this later.`}
+                description={
+                  provider.name === 'chatgpt'
+                    ? 'Signed in with your ChatGPT plan. Individual sites can override this later.'
+                    : `Key found in ${provider.envVar || 'the environment'}. Individual sites can override this later.`
+                }
               />
             ))}
           </RadioGroup>

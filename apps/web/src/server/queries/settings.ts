@@ -1,5 +1,12 @@
 import 'server-only';
-import { getAvailableProviders, getMonthlySpend, getUsageSummary, resolveModel } from '@seo/ai';
+import {
+  CHATGPT_MANAGE_USAGE_URL,
+  getAvailableProviders,
+  getChatGptStatus,
+  getMonthlySpend,
+  getUsageSummary,
+  resolveModel,
+} from '@seo/ai';
 import { checkDatabaseConnection, prisma } from '@seo/db';
 import { checkRedisConnection, getJobStats, getQueueHealth, redisStatus } from '@seo/queue';
 import { addDays, env, formatDateKey, isConfigured, round, startOfMonth, toUtcDate } from '@seo/shared';
@@ -9,6 +16,7 @@ import {
   type AiDefaults,
   type AiProviderInfo,
   type AiUsage,
+  type ChatGptConnectionInfo,
   type EnvironmentKeyRow,
   type IntegrationRow,
   type ModelRoleKey,
@@ -37,6 +45,22 @@ const JOB_RETENTION_DAYS = 30;
  */
 export async function getGlobalSettings(user: { id: string; role: string }) {
   const canAdminister = user.role === 'OWNER' || user.role === 'ADMIN';
+  // First, so provider availability below reflects a ChatGPT sign-in made by any process.
+  const chatgptStatus = await getChatGptStatus();
+  const chatgpt: ChatGptConnectionInfo = {
+    connected: chatgptStatus.connected,
+    registered: chatgptStatus.registered,
+    needsReauth: chatgptStatus.needsReauth,
+    planUsage: chatgptStatus.planUsage,
+    email: chatgptStatus.email,
+    name: chatgptStatus.name,
+    models: chatgptStatus.models,
+    connectedAt: chatgptStatus.connectedAt,
+    lastError: chatgptStatus.lastError,
+    lastErrorCode: chatgptStatus.lastErrorCode,
+    lastErrorAt: chatgptStatus.lastErrorAt,
+    manageUsageUrl: CHATGPT_MANAGE_USAGE_URL,
+  };
   const monthStart = startOfMonth(new Date());
   const trendStart = addDays(toUtcDate(new Date()), -(USAGE_TREND_DAYS - 1));
 
@@ -236,6 +260,7 @@ export async function getGlobalSettings(user: { id: string; role: string }) {
   };
 
   return {
+    chatgpt,
     providers,
     defaults,
     budget: aiBudget,
@@ -251,6 +276,7 @@ export async function getGlobalSettings(user: { id: string; role: string }) {
 export type GlobalSettings = Awaited<ReturnType<typeof getGlobalSettings>>;
 
 const PROVIDER_LABEL_BY_AI_NAME: Record<string, string> = {
+  chatgpt: 'ChatGPT plan',
   openai: 'OpenAI',
   anthropic: 'Anthropic',
   gemini: 'Google AI',

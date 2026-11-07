@@ -1,5 +1,6 @@
 import { ProviderError, ValidationError, createLogger, errorMessage, retry } from '@seo/shared';
 import type { z } from 'zod';
+import { refreshChatGptState } from './chatgpt/store';
 import { resolveModel } from './registry';
 import type { ResolvedModel, WebsiteModelSettings } from './registry';
 import { generateStructured as runStructured } from './structured';
@@ -90,6 +91,8 @@ async function prepare(options: AiCallOptions, defaultRole: ModelRole): Promise<
   // Budget first: an exhausted budget must not cost a settings round-trip either, and this is
   // the guard that stops an agent loop from spending without bound.
   await assertWithinBudget(options.websiteId ?? null);
+  // Picks up a ChatGPT sign-in (or sign-out) made in another process within the cache TTL.
+  await refreshChatGptState();
   return resolveModel(options.role ?? defaultRole, {
     settings: options.settings,
     provider: options.providerOverride,

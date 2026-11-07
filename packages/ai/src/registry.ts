@@ -7,6 +7,7 @@ import {
 } from '@seo/shared';
 import { PRICING } from './pricing';
 import { AnthropicProvider } from './providers/anthropic';
+import { ChatGptProvider } from './providers/chatgpt';
 import { GeminiProvider } from './providers/gemini';
 import { OpenAIProvider } from './providers/openai';
 import { PROVIDER_ORDER, isProviderName } from './types';
@@ -22,11 +23,14 @@ const log = createLogger('ai:registry');
  * code change, and so an install with only one key still works.
  */
 
+const chatgpt = new ChatGptProvider();
+
 /**
  * Adapters are cheap to construct (each builds its SDK client lazily on first call), so the
- * three singletons exist even on an install with no keys at all.
+ * singletons exist even on an install with no keys at all.
  */
 const PROVIDERS: Record<ProviderName, AIProvider> = {
+  chatgpt,
   anthropic: new AnthropicProvider(),
   openai: new OpenAIProvider(),
   gemini: new GeminiProvider(),
@@ -34,6 +38,7 @@ const PROVIDERS: Record<ProviderName, AIProvider> = {
 
 /** Env var an operator must set to light up each provider — surfaced in the settings UI. */
 export const PROVIDER_ENV_VAR: Record<ProviderName, string> = {
+  chatgpt: 'Sign in with ChatGPT (Settings → AI providers)',
   anthropic: 'ANTHROPIC_API_KEY',
   openai: 'OPENAI_API_KEY',
   gemini: 'GOOGLE_AI_API_KEY',
@@ -45,6 +50,20 @@ export const PROVIDER_ENV_VAR: Record<ProviderName, string> = {
  * endpoint), which triggers the cross-provider embedding fallback below.
  */
 export const DEFAULT_MODELS: Record<ProviderName, Record<ModelRole, string | null>> = {
+  // A plan's models depend on the account, so these are read from the connection's stored model
+  // list at call time. Getters keep the table's shape (and its JSON serialisation) unchanged.
+  chatgpt: {
+    get reasoning() {
+      return chatgpt.defaultModel('reasoning');
+    },
+    get fast() {
+      return chatgpt.defaultModel('fast');
+    },
+    get writing() {
+      return chatgpt.defaultModel('writing');
+    },
+    embedding: null,
+  },
   anthropic: {
     reasoning: 'claude-opus-5',
     fast: 'claude-haiku-4-5-20251001',
@@ -129,7 +148,7 @@ export function assertAiConfigured(): void {
   if (isAiAvailable()) return;
   throw new IntegrationNotConfiguredError(
     'AI provider',
-    'No AI provider is configured. Set ANTHROPIC_API_KEY, OPENAI_API_KEY or GOOGLE_AI_API_KEY.',
+    'No AI provider is configured. Use "Sign in with ChatGPT" in Settings → AI providers, or set ANTHROPIC_API_KEY, OPENAI_API_KEY or GOOGLE_AI_API_KEY.',
   );
 }
 
@@ -414,8 +433,10 @@ export async function resolveModel(
     }
     if (!builtIn) {
       throw new IntegrationNotConfiguredError(
-        'AI embeddings',
-        `The ${providerName} provider has no ${role} model. Set OPENAI_API_KEY or GOOGLE_AI_API_KEY for embeddings.`,
+        role === 'embedding' ? 'AI embeddings' : `${providerName} models`,
+        role === 'embedding'
+          ? `The ${providerName} provider has no ${role} model. Set OPENAI_API_KEY or GOOGLE_AI_API_KEY for embeddings.`
+          : `The ${providerName} provider has no ${role} model available. Refresh its model list in Settings → AI providers.`,
       );
     }
     model = builtIn;

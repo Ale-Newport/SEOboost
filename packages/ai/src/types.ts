@@ -7,16 +7,19 @@ import type { z } from 'zod';
  * vendor never leaks into agents, the SEO engine or the UI.
  */
 
-export type ProviderName = 'openai' | 'anthropic' | 'gemini';
+/** `chatgpt` is the user's own ChatGPT Plus/Pro plan via "Sign in with ChatGPT" — no API key. */
+export type ProviderName = 'chatgpt' | 'openai' | 'anthropic' | 'gemini';
 
 /**
- * Fallback order used when the operator has not pinned a provider. Anthropic first
- * because the writing/reasoning prompts in this app are tuned against it.
+ * Fallback order used when the operator has not pinned a provider. A connected ChatGPT plan
+ * comes first: the operator chose to spend their subscription rather than an API budget, and it
+ * is only "configured" once they have signed in. Then Anthropic, because the writing/reasoning
+ * prompts in this app are tuned against it.
  */
-export const PROVIDER_ORDER: readonly ProviderName[] = ['anthropic', 'openai', 'gemini'];
+export const PROVIDER_ORDER: readonly ProviderName[] = ['chatgpt', 'anthropic', 'openai', 'gemini'];
 
 export function isProviderName(value: unknown): value is ProviderName {
-  return value === 'openai' || value === 'anthropic' || value === 'gemini';
+  return value === 'chatgpt' || value === 'openai' || value === 'anthropic' || value === 'gemini';
 }
 
 export type ChatRole = 'system' | 'user' | 'assistant';

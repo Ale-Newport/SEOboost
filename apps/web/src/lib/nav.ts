@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
-  Activity, BarChart3, Bot, Boxes, Braces, CalendarDays, CheckSquare, Compass, FileText,
-  Gauge, Globe, History, KeyRound, LayoutDashboard, Library, Link2, ListChecks, Network,
+  Activity, AtSign, BarChart3, Bot, Boxes, Braces, CalendarDays, CheckSquare, Compass, FileText,
+  Gauge, Globe, History, KeyRound, LayoutDashboard, Library, Link2, ListChecks, MessagesSquare, Network,
   Search, Settings, Sparkles, Target, TrendingUp, Users, Wrench,
 } from 'lucide-react';
 
@@ -29,6 +29,7 @@ export const GLOBAL_NAV: Array<{ section: string; items: NavItem[] }> = [
       { href: '/actions', label: 'AI Actions', icon: Sparkles, description: 'What the agents propose to do next' },
       { href: '/approvals', label: 'Approvals', icon: CheckSquare, description: 'Changes waiting for your decision', badgeKey: 'pendingApprovals' },
       { href: '/calendar', label: 'Content calendar', icon: CalendarDays, description: 'Pipeline across every site' },
+      { href: '/social', label: 'Social accounts', icon: AtSign, description: 'Every connected social account, per site' },
     ],
   },
   {
@@ -59,6 +60,7 @@ export function siteNav(websiteId: string): Array<{ section: string; items: NavI
         { href: `${base}/opportunities`, label: 'Opportunities', icon: Target },
         { href: `${base}/content`, label: 'Content', icon: FileText },
         { href: `${base}/competitors`, label: 'Competitors', icon: Users },
+        { href: `${base}/social`, label: 'Social', icon: MessagesSquare },
         { href: `${base}/strategy`, label: 'AI SEO Manager', icon: Bot },
       ],
     },
