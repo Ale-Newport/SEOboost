@@ -39,6 +39,8 @@ model User {
   approvals     Approval[]
   notifications Notification[]
   changeLogs    ChangeLog[]
+  mailAccounts  MailAccount[]
+  personalAccounts PersonalAccount[]
 
   @@index([email])
 }
@@ -2168,6 +2170,71 @@ model SocialPost {
 
   @@index([websiteId, status, scheduledFor])
   @@index([websiteId, platform, publishedAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Personal accounts: mailboxes and the operator's own Reddit / GitHub
+// ─────────────────────────────────────────────────────────────
+
+enum MailProvider {
+  /// IMAP to read, SMTP to send — works with Gmail (app password), Outlook, iCloud, Yahoo, any host.
+  IMAP_SMTP
+  /// Gmail API over the installation's Google OAuth client, when one is configured.
+  GMAIL_OAUTH
+}
+
+/// A mailbox the operator reads and sends from inside the app. Messages are fetched live, never stored.
+model MailAccount {
+  id       String @id @default(cuid())
+  userId   String
+
+  email       String
+  displayName String?
+  provider    MailProvider      @default(IMAP_SMTP)
+  status      IntegrationStatus @default(NOT_CONFIGURED)
+  /// AES-256-GCM encrypted JSON (app password or OAuth tokens). Never returned to the client.
+  credentials String?
+  /// Non-secret settings: imap/smtp host, port, TLS, signature, default folder.
+  config      Json      @default("{}")
+  isDefault   Boolean   @default(false)
+  lastSyncAt  DateTime?
+  lastError   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, email])
+}
+
+enum PersonalAccountProvider {
+  GITHUB
+  REDDIT
+}
+
+/// The operator's own account on a platform, usable across every site (and copyable into a site's social accounts).
+model PersonalAccount {
+  id       String @id @default(cuid())
+  userId   String
+
+  provider    PersonalAccountProvider
+  handle      String?
+  email       String?
+  displayName String?
+  status      IntegrationStatus @default(NOT_CONFIGURED)
+  credentials String?
+  config      Json      @default("{}")
+  lastUsedAt  DateTime?
+  lastError   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider, handle])
+  @@index([userId, provider])
 }
 
 // ─────────────────────────────────────────────────────────────
