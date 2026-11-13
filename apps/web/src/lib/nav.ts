@@ -1,8 +1,9 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   Activity, AtSign, BarChart3, Bot, Boxes, Braces, CalendarDays, CheckSquare, Compass, FileText,
-  Gauge, Globe, History, KeyRound, LayoutDashboard, Library, Link2, ListChecks, MessagesSquare, Network,
-  Search, Settings, Sparkles, Target, TrendingUp, Users, Wrench,
+  Gauge, Globe, History, KeyRound, LayoutDashboard, Library, Link2, ListChecks, Mail,
+  MessagesSquare, Network, Search, Settings, Sparkles, Target, TrendingUp, UserCircle, Users,
+  Wrench,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -30,6 +31,8 @@ export const GLOBAL_NAV: Array<{ section: string; items: NavItem[] }> = [
       { href: '/approvals', label: 'Approvals', icon: CheckSquare, description: 'Changes waiting for your decision', badgeKey: 'pendingApprovals' },
       { href: '/calendar', label: 'Content calendar', icon: CalendarDays, description: 'Pipeline across every site' },
       { href: '/social', label: 'Social accounts', icon: AtSign, description: 'Every connected social account, per site' },
+      { href: '/accounts', label: 'Accounts', icon: UserCircle, description: 'Your own GitHub, Reddit and mailboxes' },
+      { href: '/mail', label: 'Mail', icon: Mail, description: 'Read, reply and send from your own mailboxes' },
     ],
   },
   {

@@ -7,6 +7,8 @@ import {
   LISTENING_PLATFORMS,
   MANUAL_ONLY_PLATFORMS,
   DEVELOPER_APP_GUIDES,
+  DEVELOPER_APP_LABELS,
+  developerAppRedirectUri,
   OAUTH_PROVIDERS,
   agentReachStatus,
   canPublishWith,
@@ -503,12 +505,12 @@ async function oauthOverview(): Promise<{ platforms: OAuthPlatformWire[]; develo
       ? [
           {
             platform: app.platform,
-            label: OAUTH_PROVIDERS[app.platform].label,
+            label: DEVELOPER_APP_LABELS[app.platform],
             configured: app.configured,
             source: app.source,
             clientIdPreview: app.clientIdPreview,
             hasSecret: app.hasSecret,
-            redirectUri: oauthRedirectUri(app.platform),
+            redirectUri: developerAppRedirectUri(app.platform),
             createUrl: DEVELOPER_APP_GUIDES[app.platform].createUrl,
             steps: DEVELOPER_APP_GUIDES[app.platform].steps,
           },

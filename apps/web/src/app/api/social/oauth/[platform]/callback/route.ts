@@ -8,6 +8,7 @@ import {
   exchangeOAuthCode,
   fetchOAuthIdentity,
   isOAuthPlatform,
+  isPersonalAttempt,
 } from '@seo/integrations';
 import { createLogger, env, errorMessage, truncate } from '@seo/shared';
 import { constantTimeEquals, encryptJson } from '@seo/shared/crypto';
@@ -15,6 +16,7 @@ import { route } from '@/lib/api';
 import { getCurrentUser } from '@/lib/auth';
 import { resolvePlatform } from '@/app/api/_lib/social';
 import { SOCIAL_OAUTH_COOKIE, accountsRedirect } from '@/app/api/_lib/social-oauth';
+import { handlePersonalCallback } from '@/app/api/accounts/_lib';
 
 const log = createLogger('api:social-oauth');
 
@@ -48,6 +50,12 @@ export const GET = route<{ platform: string }>(
     const state = url.searchParams.get('state');
     const code = url.searchParams.get('code');
     const providerError = url.searchParams.get('error');
+
+    // A Reddit web app accepts one redirect URI, so linking a personal Reddit account (Accounts)
+    // comes back here too; its attempts live under their own key and are finished there.
+    if (params.platform.toLowerCase() === 'reddit' && (await isPersonalAttempt(state))) {
+      return handlePersonalCallback(request, 'REDDIT');
+    }
 
     const attempt = await consumeOAuthAttempt(state);
     if (!attempt) {

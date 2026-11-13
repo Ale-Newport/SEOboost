@@ -30,3 +30,9 @@ export * from './adapters/index';
 
 // Social: read-only listening (agent-reach + native readers) and official-API publishers.
 export * from './social/index';
+
+// Personal accounts: the operator's own GitHub and Reddit, linked once and used on click.
+export * from './personal/index';
+
+// Mail: the operator's own mailboxes over IMAP/SMTP or the Gmail API — read live, send on click.
+export * from './mail/index';

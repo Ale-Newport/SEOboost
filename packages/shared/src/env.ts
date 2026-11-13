@@ -180,6 +180,13 @@ export const env = {
   get discordClientSecret(): string | undefined {
     return str('DISCORD_CLIENT_SECRET');
   },
+  /** GitHub OAuth App behind one-click linking of the operator's own GitHub account (Accounts). */
+  get githubClientId(): string | undefined {
+    return str('GITHUB_CLIENT_ID');
+  },
+  get githubClientSecret(): string | undefined {
+    return str('GITHUB_CLIENT_SECRET');
+  },
 
   // ── Worker ────────────────────────────────────────────────
   get workerConcurrency(): number {

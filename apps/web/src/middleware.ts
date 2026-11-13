@@ -18,6 +18,8 @@ const PUBLIC_PATHS = [
 ];
 
 const SOCIAL_OAUTH_CALLBACK = /^\/api\/social\/oauth\/[a-z-]+\/callback$/;
+/** Personal-account OAuth (Accounts → GitHub): same binding as the social callbacks. */
+const PERSONAL_OAUTH_CALLBACK = /^\/api\/accounts\/github\/callback$/;
 
 export function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
@@ -27,7 +29,7 @@ export function middleware(request: NextRequest) {
   }
   // Social OAuth callbacks are authenticated by their single-use state + binding cookie, not the
   // session: a platform's consent page can outlast a session. `/start` stays behind the session.
-  if (SOCIAL_OAUTH_CALLBACK.test(pathname)) return NextResponse.next();
+  if (SOCIAL_OAUTH_CALLBACK.test(pathname) || PERSONAL_OAUTH_CALLBACK.test(pathname)) return NextResponse.next();
 
   const hasSession = request.cookies.has('seo_os_session');
   if (hasSession) return NextResponse.next();

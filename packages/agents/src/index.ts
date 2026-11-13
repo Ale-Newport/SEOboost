@@ -66,6 +66,7 @@ export { socialListeningAgent } from './agents/social-listening-agent';
 export { socialEngagementAgent } from './agents/social-engagement-agent';
 export { socialContentAgent } from './agents/social-content-agent';
 export * from './social/posts';
+export * from './personal/accounts';
 export type { ConvertedAction, ConversionResult, PlanHorizon, PlanItem } from './agents/seo-manager-agent';
 
 // Shared agent plumbing, exported so the worker and API layer can build the same typed results.

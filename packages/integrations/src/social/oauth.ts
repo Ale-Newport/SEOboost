@@ -19,10 +19,22 @@ import { SocialSourceError, type SocialPlatformValue } from './types';
  */
 
 export type OAuthPlatform = 'REDDIT' | 'X' | 'LINKEDIN' | 'MASTODON' | 'DISCORD';
-export type DeveloperAppPlatform = Exclude<OAuthPlatform, 'MASTODON'>;
+/**
+ * Platforms whose one-click connection needs a developer app registered once per installation.
+ * GitHub is here for the operator's personal account (Accounts → GitHub), not as a social channel.
+ */
+export type DeveloperAppPlatform = Exclude<OAuthPlatform, 'MASTODON'> | 'GITHUB';
 
 export const OAUTH_PLATFORMS: readonly OAuthPlatform[] = ['REDDIT', 'X', 'LINKEDIN', 'MASTODON', 'DISCORD'];
-export const DEVELOPER_APP_PLATFORMS: readonly DeveloperAppPlatform[] = ['REDDIT', 'X', 'LINKEDIN', 'DISCORD'];
+export const DEVELOPER_APP_PLATFORMS: readonly DeveloperAppPlatform[] = ['REDDIT', 'X', 'LINKEDIN', 'DISCORD', 'GITHUB'];
+
+export const DEVELOPER_APP_LABELS: Record<DeveloperAppPlatform, string> = {
+  REDDIT: 'Reddit',
+  X: 'X',
+  LINKEDIN: 'LinkedIn',
+  DISCORD: 'Discord',
+  GITHUB: 'GitHub',
+};
 
 export function isOAuthPlatform(platform: SocialPlatformValue): platform is OAuthPlatform {
   return (OAUTH_PLATFORMS as readonly string[]).includes(platform);
@@ -125,6 +137,14 @@ export const DEVELOPER_APP_GUIDES: Record<DeveloperAppPlatform, { createUrl: str
       'Auth tab: add the redirect URI below, then copy the Client ID and Primary Client Secret.',
     ],
   },
+  GITHUB: {
+    createUrl: 'https://github.com/settings/applications/new',
+    steps: [
+      'Register a new OAuth App: name it "SEO OS" and use this installation\'s address as the Homepage URL.',
+      'Paste the redirect URI below as the "Authorization callback URL" and register the app.',
+      'Copy the Client ID, then "Generate a new client secret" and copy it.',
+    ],
+  },
   DISCORD: {
     createUrl: 'https://discord.com/developers/applications',
     steps: [
@@ -159,6 +179,16 @@ export function normaliseInstanceUrl(value: string | null | undefined): string {
 /** The redirect URI registered with each platform: one per platform, the same for every site. */
 export function oauthRedirectUri(platform: OAuthPlatform, appUrl: string = env.appUrl): string {
   return `${appUrl.replace(/\/$/, '')}/api/social/oauth/${platform.toLowerCase()}/callback`;
+}
+
+/**
+ * The redirect URI to register for a developer app. Reddit web apps accept exactly one, so the
+ * personal Reddit link reuses the social callback (which hands personal attempts on); GitHub's
+ * personal link has its own.
+ */
+export function developerAppRedirectUri(platform: DeveloperAppPlatform, appUrl: string = env.appUrl): string {
+  if (platform === 'GITHUB') return `${appUrl.replace(/\/$/, '')}/api/accounts/github/callback`;
+  return oauthRedirectUri(platform, appUrl);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -205,6 +235,7 @@ function envApp(platform: DeveloperAppPlatform): OAuthAppCredentials | null {
     X: [env.xClientId, env.xClientSecret],
     LINKEDIN: [env.linkedinClientId, env.linkedinClientSecret],
     DISCORD: [env.discordClientId, env.discordClientSecret],
+    GITHUB: [env.githubClientId, env.githubClientSecret],
   };
   const [clientId, clientSecret] = pairs[platform];
   return clientId ? { clientId, clientSecret: clientSecret ?? null } : null;
@@ -256,7 +287,7 @@ export async function saveOAuthApp(platform: DeveloperAppPlatform, app: { client
     if (!clientId) throw new SocialSourceError('BAD_INPUT', 'The client id is required.');
     const secret = app.clientSecret?.trim() || stored[platform]?.clientSecret || null;
     // X can run as a public PKCE client; every other provider authenticates the app with a secret.
-    if (!secret && platform !== 'X') throw new SocialSourceError('BAD_INPUT', `${OAUTH_PROVIDERS[platform].label} needs the client secret too.`);
+    if (!secret && platform !== 'X') throw new SocialSourceError('BAD_INPUT', `${DEVELOPER_APP_LABELS[platform]} needs the client secret too.`);
     stored[platform] = { clientId, clientSecret: secret };
   }
   await writeEncryptedSetting(OAUTH_APPS_SETTING, stored);

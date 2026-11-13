@@ -26,6 +26,7 @@ shaped so it could become one.
 | **GEO** | Eleven measurable dimensions of machine readability, scored per page and per site, with entity graph extraction and structured-data generation. |
 | **AI visibility** | Tracks whether assistants mention and cite you, through official provider APIs — with a manual import path for those that cannot be queried. |
 | **Social** | Listens on Reddit, Hacker News, Bluesky and — through [agent-reach](https://github.com/Panniantong/agent-reach) — X, YouTube, GitHub and more for people describing the problem a site solves; scores each thread, reads the community's own rules, drafts a helpful, disclosed reply for you to approve, and plans daily posts for the accounts you own (Reddit, Bluesky, Mastodon, X, LinkedIn, Dev.to, Telegram, Discord), with engagement read back. |
+| **Mail & accounts** | Read, reply and send email from your own mailboxes (Gmail via app password, Outlook, iCloud, Yahoo, any IMAP/SMTP) and use your linked GitHub and Reddit accounts — repos, issues, notifications, inbox, posts — from inside the app. |
 | **Automation** | Five autonomy levels, a hard guardrail on risky actions, an approval queue with diffs, CMS adapters (WordPress, Git/GitHub, webhook, Shopify, Webflow), and a full change log with rollback data. |
 | **Learning** | Every applied change opens an experiment. Welch's t-test over daily series, a settling window and an effect-size floor produce *likely positive / inconclusive / likely negative* — never a causal claim — and the results adjust future prioritisation. |
 

@@ -1,11 +1,11 @@
 import { z } from 'zod';
 import {
   DEVELOPER_APP_GUIDES,
+  DEVELOPER_APP_LABELS,
   DEVELOPER_APP_PLATFORMS,
-  OAUTH_PROVIDERS,
   SocialSourceError,
+  developerAppRedirectUri,
   developerAppStatuses,
-  oauthRedirectUri,
   saveOAuthApp,
 } from '@seo/integrations';
 import { ValidationError, createLogger } from '@seo/shared';
@@ -22,7 +22,7 @@ const log = createLogger('api:social-oauth-apps');
  * where from, and the first characters of the client id.
  */
 
-const platformSchema = z.enum(['REDDIT', 'X', 'LINKEDIN', 'DISCORD']);
+const platformSchema = z.enum(['REDDIT', 'X', 'LINKEDIN', 'DISCORD', 'GITHUB']);
 
 function asPlatform(value: string): (typeof DEVELOPER_APP_PLATFORMS)[number] {
   const found = DEVELOPER_APP_PLATFORMS.find((platform) => platform === value);
@@ -35,8 +35,8 @@ export const GET = route(async () => {
   return {
     apps: statuses.map((status) => ({
       ...status,
-      label: OAUTH_PROVIDERS[status.platform].label,
-      redirectUri: oauthRedirectUri(status.platform),
+      label: DEVELOPER_APP_LABELS[status.platform],
+      redirectUri: developerAppRedirectUri(status.platform),
       guide: DEVELOPER_APP_GUIDES[status.platform],
     })),
   };

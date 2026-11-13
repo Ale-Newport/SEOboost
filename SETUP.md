@@ -253,6 +253,29 @@ channels publish without approval only when the site runs at autonomy Level 4.
 
 ---
 
+### Mail inside the app
+
+**Mail** (main navigation) reads, replies to and sends email from your own mailboxes; messages
+are fetched live and never stored. Add a mailbox with its address: the provider is detected
+(Gmail, Outlook/Hotmail, iCloud, Yahoo or custom IMAP/SMTP). For Gmail, turn on 2-Step
+Verification, create an app password at <https://myaccount.google.com/apppasswords> and paste it
+once — no Google Cloud project needed. If `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` are set,
+"Sign in with Google" is offered as well. HTML mail is sanitised and shown in a sandbox with
+remote images blocked until you load them; nothing is ever sent without your click.
+
+### Your own GitHub and Reddit
+
+**Accounts** (main navigation) links your personal GitHub and Reddit accounts once and lets you
+use them across every site: GitHub notifications, repos, any repository's README/issues/PRs,
+star, watch, fork, open issues and comment; Reddit inbox, karma, your posts, subreddit browsing
+with their rules, and posting or commenting through the same guardrails as the Social module.
+GitHub connects with one click after registering a GitHub OAuth App once (the developer-apps card
+shows the callback `${APP_URL}/api/accounts/github/callback`), or with a personal access token.
+Reddit reuses the Reddit web app from Social. "Use on this site" copies the linked Reddit account
+into a site's social accounts.
+
+---
+
 ## 7. JS rendering (optional)
 
 Most sites crawl fine over plain HTTP, which is far faster. For client-rendered sites:
