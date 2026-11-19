@@ -24,7 +24,7 @@ import {
 import { StatList, StatListItem } from '@/components/ui/stat-list';
 import { Switch } from '@/components/ui/switch';
 import { TooltipInfo } from '@/components/ui/tooltip-info';
-import { ChartContainer, seriesColor, useChartColors } from '@/components/charts/chart-container';
+import { seriesColor, useChartColors } from '@/components/charts/chart-container';
 import { DistributionChart } from '@/components/charts/distribution-chart';
 import { SiteGraph, type SiteGraphNode } from '@/components/charts/site-graph';
 import { ApiError, apiGet } from '@/lib/api-client';

@@ -72,7 +72,7 @@ export async function getGlobalSettings(user: { id: string; role: string }) {
     budget,
     database,
     redis,
-    queueHealth,
+    _queueHealth,
     jobStats,
     integrationRows,
     jobCounts,

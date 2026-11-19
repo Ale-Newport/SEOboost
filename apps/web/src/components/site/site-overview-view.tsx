@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import {
-  AlertTriangle, ArrowRight, Bot, Compass, ExternalLink, FileText, KeyRound, Link2,
+  AlertTriangle, Bot, Compass, ExternalLink, FileText, KeyRound, Link2,
   MousePointerClick, RefreshCw, Search, Sparkles, Target, TrendingUp,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';

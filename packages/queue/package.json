@@ -15,5 +15,6 @@
     "bullmq": "5.81.4",
     "ioredis": "5.11.1"
   },
-  "sideEffects": false
+  "sideEffects": false,
+  "license": "MIT"
 }

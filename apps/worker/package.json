@@ -22,5 +22,9 @@
     "dotenv": "16.4.7",
     "ioredis": "5.11.1"
   },
-  "devDependencies": { "tsx": "4.23.13", "typescript": "5.9.3" }
+  "devDependencies": {
+    "tsx": "4.23.13",
+    "typescript": "5.9.3"
+  },
+  "license": "MIT"
 }

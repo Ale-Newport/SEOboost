@@ -12,11 +12,12 @@
   "dependencies": {
     "@seo/shared": "*",
     "cheerio": "1.2.0",
-    "fast-xml-parser": "5.11.1",
+    "fast-xml-parser": "5.12.1",
     "robots-parser": "3.0.1"
   },
   "optionalDependencies": {
     "playwright": "1.63.0"
   },
-  "sideEffects": false
+  "sideEffects": false,
+  "license": "MIT"
 }

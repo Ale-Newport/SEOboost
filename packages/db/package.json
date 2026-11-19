@@ -16,5 +16,6 @@
   "devDependencies": {
     "prisma": "6.19.3"
   },
-  "sideEffects": false
+  "sideEffects": false,
+  "license": "MIT"
 }

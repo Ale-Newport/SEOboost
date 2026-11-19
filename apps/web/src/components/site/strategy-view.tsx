@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   AlertTriangle, Bot, CalendarDays, CalendarRange, CheckCircle2, HelpCircle, Loader2,
-  MinusCircle, Sparkles, Target, TrendingDown, TrendingUp, XCircle,
+  MinusCircle, Sparkles, Target, TrendingDown, TrendingUp,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -145,9 +145,9 @@ export function StrategyView({ data }: { data: StrategyData }) {
           </Card>
 
           <div className="grid gap-4 lg:grid-cols-3">
-            <PlanColumn title="Today" icon={CalendarDays} items={plan.today} websiteId={website.id} />
-            <PlanColumn title="This week" icon={CalendarRange} items={plan.thisWeek} websiteId={website.id} />
-            <PlanColumn title="This month" icon={CalendarRange} items={plan.thisMonth} websiteId={website.id} />
+            <PlanColumn title="Today" icon={CalendarDays} items={plan.today} />
+            <PlanColumn title="This week" icon={CalendarRange} items={plan.thisWeek} />
+            <PlanColumn title="This month" icon={CalendarRange} items={plan.thisMonth} />
           </div>
         </>
       )}
@@ -335,12 +335,10 @@ function PlanColumn({
   title,
   icon: Icon,
   items,
-  websiteId,
 }: {
   title: string;
   icon: typeof CalendarDays;
   items: PlanItem[];
-  websiteId: string;
 }) {
   return (
     <Card>

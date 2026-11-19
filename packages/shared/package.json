@@ -12,5 +12,6 @@
   "dependencies": {
     "zod": "3.25.76"
   },
-  "sideEffects": false
+  "sideEffects": false,
+  "license": "MIT"
 }

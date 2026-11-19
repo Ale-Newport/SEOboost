@@ -1,7 +1,6 @@
-import Link from 'next/link';
 import { AlertTriangle, CheckSquare, FileWarning, Globe, MousePointerClick, Search, Target, TrendingUp } from 'lucide-react';
 import { MetricCard } from '@/components/ui/metric-card';
-import { formatCompact, formatNumber, formatPercent, formatPosition } from '@/lib/utils';
+import { formatCompact, formatNumber, formatPosition } from '@/lib/utils';
 import type { DashboardData } from '@/server/queries/dashboard';
 
 interface Props {
