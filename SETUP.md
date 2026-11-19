@@ -20,7 +20,7 @@ Step-by-step installation, credentials and troubleshooting.
 ### Option A — Docker
 
 ```bash
-git clone <your-repo> seo-os && cd seo-os
+git clone https://github.com/Ale-Newport/SEOboost.git && cd SEOboost
 cp .env.example .env
 ```
 
@@ -42,7 +42,7 @@ docker compose logs -f worker      # confirm the worker connected
 ### Option B — Local
 
 ```bash
-git clone <your-repo> seo-os && cd seo-os
+git clone https://github.com/Ale-Newport/SEOboost.git && cd SEOboost
 ./scripts/setup.sh
 ```
 
