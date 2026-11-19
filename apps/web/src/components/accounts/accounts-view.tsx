@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useId, useState } from 'react';
-import { ExternalLink, Github, KeyRound, Mail, MessageCircle, Unlink } from 'lucide-react';
+import { ExternalLink, KeyRound, Mail, MessageCircle, Unlink } from 'lucide-react';
+import { GithubMark } from '@/components/icons/github-mark';
 import { toast } from 'sonner';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -134,7 +135,7 @@ function ProviderCard({
   const ids = useId();
   const accounts = data.accounts.filter((account) => account.provider === provider);
   const oauth = data.oauth[provider];
-  const Icon = provider === 'GITHUB' ? Github : MessageCircle;
+  const Icon = provider === 'GITHUB' ? GithubMark : MessageCircle;
   const [token, setToken] = useState('');
   const [saving, setSaving] = useState(false);
   const [siteFor, setSiteFor] = useState<Record<string, string>>({});
