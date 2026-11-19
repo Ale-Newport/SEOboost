@@ -1,3 +1,4 @@
+import sanitizeHtml from 'sanitize-html';
 import { truncate } from '@seo/shared';
 import { httpRequest, providerMessage, type HttpResult } from '../adapters/http';
 import { readArray, readDate, readNumber, readOptionalNumber, readRecord, readString } from '../serp/http';
@@ -237,41 +238,69 @@ export async function markNotificationRead(token: string, threadId: string): Pro
   await githubApi(token, `/notifications/threads/${threadId}`, { method: 'PATCH', okStatuses: [205, 304] });
 }
 
-const DANGEROUS_TAGS = 'script|style|iframe|object|embed|form|input|button|textarea|select|meta|link|base|frame|frameset|svg|math';
-const DANGEROUS_PAIRED = new RegExp(`<(${DANGEROUS_TAGS})\\b[^>]*>[\\s\\S]*?<\\/\\1\\s*>`, 'gi');
-const DANGEROUS_TAG = new RegExp(`<\\/?(${DANGEROUS_TAGS})\\b[^>]*>`, 'gi');
-/** Max passes before giving up on the markup; real GitHub HTML is stable after one. */
-const MAX_SANITIZE_PASSES = 5;
+/**
+ * Tags GitHub's renderer produces. `input` covers task-list checkboxes (`type="checkbox"` with
+ * `disabled`), which are rendered as disabled inputs.
+ */
+const GITHUB_ALLOWED_TAGS = [
+  'a', 'abbr', 'b', 'blockquote', 'br', 'caption', 'center', 'code', 'col', 'colgroup', 'dd',
+  'del', 'details', 'div', 'dl', 'dt', 'em', 'figcaption', 'figure', 'h1', 'h2', 'h3', 'h4',
+  'h5', 'h6', 'hr', 'i', 'img', 'input', 'ins', 'kbd', 'li', 'mark', 'ol', 'p', 'pre', 'q',
+  's', 'samp', 'small', 'span', 'strike', 'strong', 'sub', 'summary', 'sup', 'table', 'tbody',
+  'td', 'tfoot', 'th', 'thead', 'tr', 'tt', 'u', 'ul',
+];
 
 /**
- * Strip anything executable from GitHub-rendered HTML before it is shown.
- *
- * GitHub already sanitises what it renders; this is a second line so a README can never run
- * script in the operator's session even if that ever changes. Exported for tests.
- *
- * Runs until nothing changes, because one pass can assemble what it removes: `<scr<script>ipt>`
- * becomes `<script>`. Markup still changing after a few passes is crafted, so it is escaped whole.
+ * Attributes GitHub's renderer emits for those tags. `href`, `src` and `xlink:href` are URL
+ * attributes; `allowedSchemes` below restricts them to `http`, `https` and `mailto`.
+ */
+const GITHUB_ALLOWED_ATTRIBUTES: Parameters<typeof sanitizeHtml>[1]['allowedAttributes'] = {
+  a: ['href', 'title'],
+  abbr: ['title'],
+  col: ['span', 'width'],
+  colgroup: ['span', 'width'],
+  details: ['open'],
+  img: ['src', 'alt', 'width', 'height'],
+  input: ['type', 'checked', 'disabled'],
+  table: ['width', 'align', 'border', 'cellpadding', 'cellspacing'],
+  td: ['colspan', 'rowspan', 'align', 'valign', 'width'],
+  th: ['colspan', 'rowspan', 'align', 'valign', 'width'],
+  tr: ['align', 'valign'],
+  '*': ['align', 'dir'],
+};
+
+/**
+ * `sanitize-html` decodes HTML entities before checking URL schemes, so an entity-encoded
+ * scheme such as `&#106;avascript:…` (`javascript:`) is caught here too. Only `http`, `https`
+ * and `mailto` are allowed — nothing else can fetch or execute.
  */
 export function sanitizeGitHubHtml(html: string): string {
-  let current = html;
-  for (let pass = 0; pass < MAX_SANITIZE_PASSES; pass++) {
-    const next = sanitizeGitHubHtmlPass(current);
-    if (next === current) return next;
-    current = next;
-  }
-  return current.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
-function sanitizeGitHubHtmlPass(html: string): string {
-  return html
-    // Paired elements go with everything inside them; any stray or self-closing tag goes too.
-    .replace(DANGEROUS_PAIRED, '')
-    .replace(DANGEROUS_TAG, '')
-    // `[\s/]`: browsers also split attributes on `/`, as in `<img/onerror=…>`.
-    .replace(/[\s/]on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-    .replace(/\s(href|src|xlink:href|action|formaction)\s*=\s*("|')\s*(javascript|vbscript|data:text\/html)[^"']*\2/gi, ' $1="#"')
-    .replace(/\s(href|src|xlink:href|action|formaction)\s*=\s*(javascript|vbscript|data:text\/html)[^\s>]*/gi, ' $1="#"')
-    .replace(/\sstyle\s*=\s*("[^"]*"|'[^']*')/gi, '');
+  return sanitizeHtml(html, {
+    allowedTags: GITHUB_ALLOWED_TAGS,
+    allowedAttributes: GITHUB_ALLOWED_ATTRIBUTES,
+    allowedSchemes: ['http', 'https', 'mailto'],
+    allowedSchemesByTag: {},
+    allowProtocolRelative: false,
+    // Links open in a new tab and do not leak referrer info.
+    transformTags: {
+      a: (tagName, attribs) => ({
+        tagName,
+        attribs: {
+          ...attribs,
+          href: attribs.href && /^javascript:/i.test(attribs.href) ? '#' : attribs.href,
+          target: '_blank',
+          rel: 'noopener noreferrer nofollow',
+        },
+      }),
+      img: (tagName, attribs) => ({
+        tagName,
+        attribs: {
+          ...attribs,
+          src: attribs.src && /^javascript:/i.test(attribs.src) ? '#' : attribs.src,
+        },
+      }),
+    },
+  });
 }
 
 export interface GitHubRepoDetail extends GitHubRepoSummary {

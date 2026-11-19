@@ -136,7 +136,8 @@ describe('sanitizeGitHubHtml', () => {
 
   it('leaves ordinary GitHub HTML untouched', () => {
     const html = '<h2><a href="#install">Install</a></h2><pre><code>npm i x</code></pre><img src="https://x/a.png" alt="logo">';
-    expect(sanitizeGitHubHtml(html)).toBe(html);
+    // `sanitize-html` re-serialises void elements as self-closing (`<img … />`); everything else is preserved.
+    expect(sanitizeGitHubHtml(html)).toBe(html.replace('<img src="https://x/a.png" alt="logo">', '<img src="https://x/a.png" alt="logo" />'));
   });
 
   it('escapes markup that is still changing after several passes, quickly', () => {
@@ -146,7 +147,16 @@ describe('sanitizeGitHubHtml', () => {
     const clean = sanitizeGitHubHtml(nested);
     expect(performance.now() - started).toBeLessThan(100);
     expect(clean).not.toContain('<');
-    expect(sanitizeGitHubHtml(`<p${' onx=1'.repeat(8_000)}>`)).toBe('<p>');
+    // `sanitize-html` strips the unknown `onx` attributes and closes the empty `<p>`.
+    expect(sanitizeGitHubHtml(`<p${' onx=1'.repeat(8_000)}>`)).toBe('<p></p>');
+  });
+
+  it('neutralises entity-encoded javascript: URLs', () => {
+    // `&#106;` decodes to `j`, so `&#106;avascript:` is `javascript:` — a regex denylist that
+    // works on raw markup misses it; `sanitize-html` decodes entities before scheme checking.
+    expect(sanitizeGitHubHtml('<a href="&#106;avascript:alert(1)">x</a>')).toBe('<a href="#">x</a>');
+    expect(sanitizeGitHubHtml('<a href="&#x6A;avascript:alert(1)">x</a>')).toBe('<a href="#">x</a>');
+    expect(sanitizeGitHubHtml('<img src="&#106;avascript:alert(1)">')).toBe('<img src="#" />');
   });
 });
 
