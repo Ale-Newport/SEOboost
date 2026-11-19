@@ -21,7 +21,7 @@ export const platformSchema = z.nativeEnum(SocialPlatform);
 /** Platforms a listening topic may target — the ones some reader can actually search. */
 export const listeningPlatformSchema = platformSchema.refine(
   (platform) => LISTENING_PLATFORMS.includes(platform),
-  (platform) => ({ message: `Listening is not available for ${platform}.` }),
+  { error: (issue) => `Listening is not available for ${String(issue.input)}.` },
 );
 
 /** The editable fields of a listening topic, shared by create (POST) and edit (PATCH). */

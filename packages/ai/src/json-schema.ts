@@ -31,59 +31,85 @@ export interface ZodToJsonSchemaOptions {
  */
 const MAX_DEPTH = 24;
 
+/** Any Zod 4 schema node; object shapes are typed with the core interface, not the classic one. */
+type ZodNode = z.core.$ZodType;
+
 /** Convert a Zod schema into a JSON Schema object suitable for provider structured output. */
 export function zodToJsonSchema(
-  schema: z.ZodTypeAny,
+  schema: ZodNode,
   options: ZodToJsonSchemaOptions = {},
 ): JsonSchema {
   return convert(schema, options.strict === true, 0);
 }
 
-function convert(node: z.ZodTypeAny, strict: boolean, depth: number): JsonSchema {
+/**
+ * The fields this converter reads from a Zod 4 check definition (`schema._zod.def.checks[i]._zod.def`).
+ * A string-format schema such as `z.email()` carries the same fields on its own definition.
+ */
+interface CheckDef {
+  check?: string;
+  format?: string;
+  value?: unknown;
+  inclusive?: boolean;
+  minimum?: number;
+  maximum?: number;
+  length?: number;
+  pattern?: RegExp;
+}
+
+function convert(node: ZodNode, strict: boolean, depth: number): JsonSchema {
   // An empty schema accepts anything; the Zod validation pass downstream is the real gate.
   if (depth > MAX_DEPTH) return {};
   const body = convertNode(node, strict, depth);
-  const description = node.description;
+  const description = node instanceof z.ZodType ? node.description : undefined;
   return description ? { ...body, description } : body;
 }
 
-function convertNode(node: z.ZodTypeAny, strict: boolean, depth: number): JsonSchema {
+function convertNode(node: ZodNode, strict: boolean, depth: number): JsonSchema {
   // Wrappers first — they delegate to the inner type. They do not add a level of nesting, but
   // they do count towards the depth budget so a pathological wrapper chain still terminates.
+  // (Zod 4 has no wrapper for `.refine()` or `.brand()`: both return the same kind of schema.)
   const next = depth + 1;
   if (node instanceof z.ZodOptional) return convert(node.unwrap(), strict, next);
   if (node instanceof z.ZodNullable) return makeNullable(convert(node.unwrap(), strict, next));
-  if (node instanceof z.ZodDefault) return convert(node.removeDefault(), strict, next);
-  if (node instanceof z.ZodCatch) return convert(node.removeCatch(), strict, next);
-  if (node instanceof z.ZodEffects) return convert(node.innerType(), strict, next);
-  if (node instanceof z.ZodBranded) return convert(node.unwrap(), strict, next);
+  if (node instanceof z.ZodDefault) return convert(node.unwrap(), strict, next);
+  if (node instanceof z.ZodCatch) return convert(node.unwrap(), strict, next);
   if (node instanceof z.ZodReadonly) return convert(node.unwrap(), strict, next);
-  if (node instanceof z.ZodLazy) return convert(node.schema, strict, next);
-  if (node instanceof z.ZodPipeline) return convert(node._def.out, strict, next);
+  if (node instanceof z.ZodLazy) return convert(node.unwrap(), strict, next);
+  // `.transform()` is `pipe(schema, transform)` and `z.preprocess()` is `pipe(transform, schema)`:
+  // describe the side that is a real schema. A plain `.pipe(target)` describes the target.
+  if (node instanceof z.ZodPipe) {
+    const { in: input, out } = node._zod.def;
+    return convert(out instanceof z.ZodTransform ? input : out, strict, next);
+  }
 
   if (node instanceof z.ZodObject) return convertObject(node, strict, next);
   if (node instanceof z.ZodArray) return convertArray(node, strict, next);
   if (node instanceof z.ZodTuple) return convertTuple(node, strict, next);
   if (node instanceof z.ZodRecord) {
-    return { type: 'object', additionalProperties: convert(node.valueSchema, strict, next) };
+    return { type: 'object', additionalProperties: convert(node.valueType, strict, next) };
   }
 
-  if (node instanceof z.ZodString) return convertString(node, strict);
+  if (node instanceof z.ZodString || node instanceof z.ZodStringFormat) {
+    return convertString(node, strict);
+  }
   if (node instanceof z.ZodNumber) return convertNumber(node, strict);
   if (node instanceof z.ZodBoolean) return { type: 'boolean' };
   if (node instanceof z.ZodBigInt) return { type: 'integer' };
   if (node instanceof z.ZodDate) return { type: 'string', format: 'date-time' };
   if (node instanceof z.ZodNull) return { type: 'null' };
 
-  if (node instanceof z.ZodLiteral) return convertLiteral(node.value);
-  if (node instanceof z.ZodEnum) return { type: 'string', enum: [...node.options] };
-  if (node instanceof z.ZodNativeEnum) return convertNativeEnum(node);
-
-  if (node instanceof z.ZodDiscriminatedUnion) {
-    return { anyOf: node.options.map((option: z.ZodTypeAny) => convert(option, strict, next)) };
+  if (node instanceof z.ZodLiteral) {
+    const values = node._zod.def.values;
+    if (values.length === 1) return convertLiteral(values[0]);
+    return { anyOf: values.map((value) => convertLiteral(value)) };
   }
+  // `z.enum([...])` and `z.nativeEnum(...)` are the same class in Zod 4.
+  if (node instanceof z.ZodEnum) return convertEnum(node);
+
+  // Covers `z.discriminatedUnion()` too: it is a `ZodUnion` subclass in Zod 4.
   if (node instanceof z.ZodUnion) {
-    return { anyOf: node.options.map((option: z.ZodTypeAny) => convert(option, strict, next)) };
+    return { anyOf: node.options.map((option: ZodNode) => convert(option, strict, next)) };
   }
 
   // ZodAny / ZodUnknown / anything exotic: an empty schema accepts everything, which is the
@@ -91,7 +117,7 @@ function convertNode(node: z.ZodTypeAny, strict: boolean, depth: number): JsonSc
   return {};
 }
 
-function convertObject(node: z.ZodObject<z.ZodRawShape>, strict: boolean, depth: number): JsonSchema {
+function convertObject(node: z.ZodObject, strict: boolean, depth: number): JsonSchema {
   const properties: Record<string, JsonSchema> = {};
   const required: string[] = [];
 
@@ -109,12 +135,18 @@ function convertObject(node: z.ZodObject<z.ZodRawShape>, strict: boolean, depth:
   return schema;
 }
 
-function convertArray(node: z.ZodArray<z.ZodTypeAny>, strict: boolean, depth: number): JsonSchema {
+function convertArray(node: z.ZodArray, strict: boolean, depth: number): JsonSchema {
   const schema: JsonSchema = { type: 'array', items: convert(node.element, strict, depth) };
   if (!strict) {
-    const min = node._def.minLength?.value;
-    const max = node._def.maxLength?.value;
-    const exact = node._def.exactLength?.value;
+    // The last check of each kind wins, and an exact length beats min/max.
+    let min: number | undefined;
+    let max: number | undefined;
+    let exact: number | undefined;
+    for (const check of checkDefs(node)) {
+      if (check.check === 'min_length') min = check.minimum;
+      else if (check.check === 'max_length') max = check.maximum;
+      else if (check.check === 'length_equals') exact = check.length;
+    }
     if (typeof exact === 'number') {
       schema.minItems = exact;
       schema.maxItems = exact;
@@ -127,57 +159,75 @@ function convertArray(node: z.ZodArray<z.ZodTypeAny>, strict: boolean, depth: nu
 }
 
 function convertTuple(node: z.ZodTuple, strict: boolean, depth: number): JsonSchema {
-  const items = node.items.map((item: z.ZodTypeAny) => convert(item, strict, depth));
+  const items = node._zod.def.items.map((item: ZodNode) => convert(item, strict, depth));
   return { type: 'array', prefixItems: items, minItems: items.length, maxItems: items.length };
 }
 
-function convertString(node: z.ZodString, strict: boolean): JsonSchema {
+function convertString(node: z.ZodString | z.ZodStringFormat, strict: boolean): JsonSchema {
   const schema: JsonSchema = { type: 'string' };
   if (strict) return schema;
-  for (const check of node._def.checks) {
-    switch (check.kind) {
-      case 'min':
-        schema.minLength = check.value;
-        break;
-      case 'max':
-        schema.maxLength = check.value;
-        break;
-      case 'email':
-        schema.format = 'email';
-        break;
-      case 'url':
-        schema.format = 'uri';
-        break;
-      case 'uuid':
-        schema.format = 'uuid';
-        break;
-      case 'datetime':
-        schema.format = 'date-time';
-        break;
-      case 'regex':
-        schema.pattern = check.regex.source;
-        break;
-      default:
-        break;
+  for (const check of checkDefs(node)) {
+    if (check.check === 'min_length') {
+      schema.minLength = check.minimum;
+    } else if (check.check === 'max_length') {
+      schema.maxLength = check.maximum;
+    } else if (check.check === 'string_format') {
+      // Only the formats the providers understand. Others (`startsWith`, `cuid`, `ipv4`, …)
+      // also carry a `pattern` internally, but are deliberately not exposed as one.
+      switch (check.format) {
+        case 'email':
+          schema.format = 'email';
+          break;
+        case 'url':
+          schema.format = 'uri';
+          break;
+        case 'uuid':
+        case 'guid':
+          schema.format = 'uuid';
+          break;
+        case 'datetime':
+          schema.format = 'date-time';
+          break;
+        case 'regex':
+          if (check.pattern) schema.pattern = check.pattern.source;
+          break;
+        default:
+          break;
+      }
     }
   }
   return schema;
 }
 
+const INTEGER_FORMATS = new Set(['safeint', 'int32', 'uint32']);
+
 function convertNumber(node: z.ZodNumber, strict: boolean): JsonSchema {
-  const isInt = node._def.checks.some((check) => check.kind === 'int');
+  const checks = checkDefs(node);
+  const isInt = checks.some(
+    (check) => check.check === 'number_format' && INTEGER_FORMATS.has(check.format ?? ''),
+  );
   const schema: JsonSchema = { type: isInt ? 'integer' : 'number' };
   if (strict) return schema;
-  for (const check of node._def.checks) {
-    if (check.kind === 'min') {
+  for (const check of checks) {
+    if (check.check === 'greater_than') {
       if (check.inclusive) schema.minimum = check.value;
       else schema.exclusiveMinimum = check.value;
-    } else if (check.kind === 'max') {
+    } else if (check.check === 'less_than') {
       if (check.inclusive) schema.maximum = check.value;
       else schema.exclusiveMaximum = check.value;
     }
   }
   return schema;
+}
+
+/**
+ * The check definitions attached to a schema, in the order they were added. A format schema
+ * (`z.email()`, `z.int()`) is itself a check, so its own definition is included first.
+ */
+function checkDefs(node: ZodNode): CheckDef[] {
+  const def = node._zod.def;
+  const own = 'check' in def ? [def as CheckDef] : [];
+  return [...own, ...(def.checks ?? []).map((check) => check._zod.def as CheckDef)];
 }
 
 function convertLiteral(value: unknown): JsonSchema {
@@ -189,8 +239,10 @@ function convertLiteral(value: unknown): JsonSchema {
   return {};
 }
 
-function convertNativeEnum(node: z.ZodNativeEnum<z.EnumLike>): JsonSchema {
-  const values = Object.values(node._def.values).filter(
+function convertEnum(node: z.ZodEnum): JsonSchema {
+  // Read the raw entries rather than `options`: for a numeric TypeScript enum this keeps the
+  // reverse-mapped member names, exactly as the Zod 3 `nativeEnum` conversion emitted them.
+  const values = Object.values(node._zod.def.entries).filter(
     (value): value is string | number => typeof value === 'string' || typeof value === 'number',
   );
   const allStrings = values.every((value) => typeof value === 'string');
@@ -210,10 +262,15 @@ function makeNullable(schema: JsonSchema): JsonSchema {
   return { anyOf: [schema, { type: 'null' }] };
 }
 
-function isOptional(node: z.ZodTypeAny): boolean {
+function isOptional(node: ZodNode): boolean {
   if (node instanceof z.ZodOptional) return true;
   if (node instanceof z.ZodDefault) return true;
-  if (node instanceof z.ZodEffects) return isOptional(node.innerType());
+  // A transform or preprocess is optional when the schema it wraps is; a plain `.pipe()` is not.
+  if (node instanceof z.ZodPipe) {
+    const { in: input, out } = node._zod.def;
+    if (out instanceof z.ZodTransform) return isOptional(input);
+    if (input instanceof z.ZodTransform) return isOptional(out);
+  }
   return false;
 }
 

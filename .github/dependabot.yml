@@ -12,8 +12,6 @@ updates:
         update-types: [minor, patch]
     ignore:
       # Major upgrades that need deliberate migrations are tracked as issues.
-      - dependency-name: zod
-        update-types: [version-update:semver-major]
       - dependency-name: prisma
         update-types: [version-update:semver-major]
       - dependency-name: '@prisma/client'

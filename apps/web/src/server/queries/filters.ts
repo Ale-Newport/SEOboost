@@ -29,6 +29,9 @@ export const booleanParam = z
  * cleared filter chip behaves like no filter at all.
  */
 export function listParam<T extends ZodTypeAny>(item: T) {
+  // Zod 4 types `.pipe()` so the target must accept the source's output (`string[]`). `item` is
+  // generic (and `z.coerce` inputs are `unknown`), so state that contract explicitly.
+  const items = z.array(item) as unknown as z.ZodType<z.output<T>[], string[]>;
   return z
     .union([z.string(), z.array(z.string())])
     .transform((value) =>
@@ -36,7 +39,7 @@ export function listParam<T extends ZodTypeAny>(item: T) {
         .map((entry) => entry.trim())
         .filter((entry) => entry.length > 0),
     )
-    .pipe(z.array(item));
+    .pipe(items);
 }
 
 /** A positive integer from the query string, e.g. `?minWordCount=300`. */

@@ -71,6 +71,13 @@ export const updateWebsiteSchema = createWebsiteSchema
   .partial()
   .omit({ competitors: true, startCrawl: true })
   .extend({
+    // Zod 4 applies a `.default()` even inside `.optional()`, so an update that omits these
+    // fields would reset them. Drop the creation defaults: absent still means "unchanged".
+    protocol: createWebsiteSchema.shape.protocol.removeDefault().optional(),
+    primaryLanguage: createWebsiteSchema.shape.primaryLanguage.removeDefault().optional(),
+    targetLocales: createWebsiteSchema.shape.targetLocales.removeDefault().optional(),
+    targetCountry: createWebsiteSchema.shape.targetCountry.removeDefault().optional(),
+    cmsType: createWebsiteSchema.shape.cmsType.removeDefault().optional(),
     status: z.enum(['ACTIVE', 'PAUSED', 'ARCHIVED']).optional(),
   });
 

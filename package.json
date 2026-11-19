@@ -54,7 +54,8 @@
       "postcss-selector-parser": "6.1.6"
     },
     "@prisma/config": {
-      "deepmerge-ts": "8.0.2"
+      "deepmerge-ts": "8.0.2",
+      "effect": "3.22.5"
     }
   },
   "license": "MIT"

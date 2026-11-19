@@ -89,10 +89,10 @@ export function validateOrThrow<T>(
  * Walk a value alongside its schema, turning `null` into `undefined` wherever the schema
  * accepts absence but not null. Leaves genuinely nullable fields alone.
  */
-export function normalizeNullables(schema: z.ZodTypeAny, value: unknown): unknown {
+export function normalizeNullables(schema: z.core.$ZodType, value: unknown): unknown {
   if (value === null) {
-    if (schema.safeParse(null).success) return null;
-    if (schema.safeParse(undefined).success) return undefined;
+    if (z.safeParse(schema, null).success) return null;
+    if (z.safeParse(schema, undefined).success) return undefined;
     return null;
   }
 
@@ -110,22 +110,27 @@ export function normalizeNullables(schema: z.ZodTypeAny, value: unknown): unknow
   }
 
   if (core instanceof z.ZodArray && Array.isArray(value)) {
-    const element: z.ZodTypeAny = core.element;
+    const element: z.core.$ZodType = core.element;
     return value.map((item) => normalizeNullables(element, item));
   }
 
   return value;
 }
 
-function unwrapSchema(node: z.ZodTypeAny): z.ZodTypeAny {
+function unwrapSchema(node: z.core.$ZodType): z.core.$ZodType {
   if (node instanceof z.ZodOptional || node instanceof z.ZodNullable) {
     return unwrapSchema(node.unwrap());
   }
-  if (node instanceof z.ZodReadonly || node instanceof z.ZodBranded) {
-    return unwrapSchema(node.unwrap());
-  }
+  // Zod 4 has no wrapper for `.brand()` or `.refine()`: both return the same kind of schema.
+  if (node instanceof z.ZodReadonly) return unwrapSchema(node.unwrap());
   if (node instanceof z.ZodDefault) return unwrapSchema(node.removeDefault());
-  if (node instanceof z.ZodEffects) return unwrapSchema(node.innerType());
+  // `.transform()` is `pipe(schema, transform)` and `z.preprocess()` is `pipe(transform, schema)`;
+  // unwrap to the real schema, as Zod 3's `ZodEffects.innerType()` did. A plain `.pipe()` is kept.
+  if (node instanceof z.ZodPipe) {
+    const { in: input, out } = node._zod.def;
+    if (out instanceof z.ZodTransform) return unwrapSchema(input);
+    if (input instanceof z.ZodTransform) return unwrapSchema(out);
+  }
   return node;
 }
 

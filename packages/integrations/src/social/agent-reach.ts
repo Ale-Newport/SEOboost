@@ -59,7 +59,7 @@ const envelopeSchema = z
     action: z.string().nullable().optional(),
     backend: z.string().nullable().optional(),
     items: z.array(itemSchema).default([]),
-    meta: z.record(z.unknown()).optional(),
+    meta: z.record(z.string(), z.unknown()).optional(),
     error: z
       .object({
         code: z.string(),

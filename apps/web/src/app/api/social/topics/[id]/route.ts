@@ -11,7 +11,15 @@ import { normaliseCommunity, requireOwnedTopic, topicFields } from '@/app/api/_l
  * a thread already in the inbox, or already answered, is history the operator may still need.
  */
 
-const patchSchema = topicFields.partial();
+const patchSchema = topicFields.partial().extend({
+  // Zod 4 applies a `.default()` even inside `.optional()`, so a PATCH that omits these fields
+  // would reset them. Drop the creation defaults: absent still means "unchanged".
+  keywords: topicFields.shape.keywords.removeDefault().optional(),
+  negativeKeywords: topicFields.shape.negativeKeywords.removeDefault().optional(),
+  communities: topicFields.shape.communities.removeDefault().optional(),
+  kind: topicFields.shape.kind.removeDefault().optional(),
+  isActive: topicFields.shape.isActive.removeDefault().optional(),
+});
 
 export const PATCH = route<{ id: string }>(async ({ user, request, params }) => {
   const body = await readBody(request, patchSchema);

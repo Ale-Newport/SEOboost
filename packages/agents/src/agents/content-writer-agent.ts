@@ -300,7 +300,7 @@ const schemaSuggestionSchema = z.object({
   suggestions: z.array(
     z.object({
       schemaType: z.string(),
-      jsonLd: z.record(z.unknown()),
+      jsonLd: z.record(z.string(), z.unknown()),
       propertySources: z.array(z.string()),
       replacesExisting: z.boolean(),
       expectedBenefit: z.string(),

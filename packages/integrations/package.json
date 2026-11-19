@@ -17,7 +17,7 @@
     "mailparser": "3.14.5",
     "nodemailer": "10.6.0",
     "sanitize-html": "2.18.2",
-    "zod": "3.25.76"
+    "zod": "4.6.7"
   },
   "sideEffects": false,
   "devDependencies": {
