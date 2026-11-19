@@ -12,7 +12,7 @@
   "dependencies": {
     "@seo/db": "*",
     "@seo/shared": "*",
-    "googleapis": "178.1.1",
+    "googleapis": "190.0.0",
     "imapflow": "2.12.1",
     "mailparser": "3.14.5",
     "nodemailer": "10.6.0",
