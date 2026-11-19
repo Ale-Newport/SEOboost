@@ -70,6 +70,7 @@ async function withDid(session: BlueskySession, atUri: string): Promise<string> 
 async function getPosts(session: BlueskySession, uris: readonly string[]): Promise<Record<string, unknown>[]> {
   const query = uris.map((uri) => `uris=${encodeURIComponent(uri)}`).join('&');
   const res = await httpRequest(`${session.service}/xrpc/app.bsky.feed.getPosts?${query}`, {
+    userSuppliedUrl: true,
     headers: { authorization: `Bearer ${session.accessJwt}` },
   });
   if (!res.ok) throw blueskyError(res, 'app.bsky.feed.getPosts');

@@ -1,4 +1,5 @@
 import type { ZodError } from 'zod';
+import { safeLocalPath } from '@seo/shared/url';
 
 /**
  * Helpers shared by the sign-in and sign-up forms.
@@ -46,9 +47,6 @@ export function fieldErrorsFromApiDetails(details: unknown): FieldErrors {
  * or a backslash IE/WHATWG treats as a slash — is discarded rather than sanitised.
  */
 export function safeNextPath(value: string | undefined | null, fallback = '/'): string {
-  if (!value) return fallback;
-  if (!value.startsWith('/')) return fallback;
-  if (value.startsWith('//') || value.startsWith('/\\')) return fallback;
-  if (value.includes('\\')) return fallback;
-  return value;
+  // Also rejects tabs/newlines, which the URL parser drops (`/\t/evil.com` → `//evil.com`).
+  return safeLocalPath(value) ?? fallback;
 }

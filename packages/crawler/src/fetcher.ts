@@ -8,6 +8,7 @@
  */
 
 import { RateLimiter, createLogger, env, errorMessage, retry } from '@seo/shared';
+import { BlockedUrlError, assertPublicUrl } from '@seo/shared/ssrf';
 import type { FetchResult } from './types';
 
 const log = createLogger('crawler:fetch');
@@ -41,6 +42,11 @@ export interface FetcherOptions {
   /** Total attempts per URL, including the first. */
   retries?: number;
   acceptLanguage?: string;
+  /**
+   * Allow loopback/private/link-local targets. Defaults to `ALLOW_PRIVATE_NETWORK_FETCH`; every
+   * hop of a redirect chain is checked, so a public page cannot bounce the crawler inward.
+   */
+  allowPrivateNetwork?: boolean;
 }
 
 export interface FetchOptions {
@@ -230,6 +236,7 @@ export class Fetcher {
   private readonly minHostIntervalMs: number;
   private readonly retries: number;
   private readonly acceptLanguage: string;
+  private readonly allowPrivateNetwork: boolean;
   private readonly hostIntervals = new Map<string, number>();
 
   constructor(options: FetcherOptions = {}) {
@@ -240,6 +247,7 @@ export class Fetcher {
     this.minHostIntervalMs = Math.max(0, options.minHostIntervalMs ?? 0);
     this.retries = Math.max(1, options.retries ?? 3);
     this.acceptLanguage = options.acceptLanguage ?? 'en-US,en;q=0.9';
+    this.allowPrivateNetwork = options.allowPrivateNetwork ?? env.allowPrivateNetworkFetch;
   }
 
   /**
@@ -309,7 +317,7 @@ export class Fetcher {
           attempts: this.retries,
           baseDelayMs: 700,
           maxDelayMs: 15_000,
-          shouldRetry: (err) => !(err instanceof AbortedError),
+          shouldRetry: (err) => !(err instanceof AbortedError) && !(err instanceof BlockedUrlError),
           onRetry: (err, attempt, delayMs) =>
             log.debug('retrying request', { url, attempt, delayMs, error: errorMessage(err) }),
         },
@@ -430,6 +438,8 @@ export class Fetcher {
     const limiter = this.limiterFor(url);
     const perform = async (): Promise<SingleRequestResult> => {
       if (options.signal?.aborted) throw new AbortedError();
+      // SSRF guard: runs per hop because redirects are followed manually.
+      await assertPublicUrl(url, { allowPrivateNetwork: this.allowPrivateNetwork });
       // Declared outside the try so the catch/finally can inspect and dispose it.
       const deadline = startDeadline(this.timeoutMs, options.signal);
       try {

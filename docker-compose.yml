@@ -14,8 +14,10 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-seo}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-seo}
       POSTGRES_DB: ${POSTGRES_DB:-seo_os}
+    # Loopback only: the default credentials must never be reachable from the network.
+    # The app containers reach Postgres over the compose network, not this port.
     ports:
-      - '${POSTGRES_PORT:-5432}:5432'
+      - '127.0.0.1:${POSTGRES_PORT:-5432}:5432'
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -28,8 +30,9 @@ services:
     image: redis:7-alpine
     restart: unless-stopped
     command: ['redis-server', '--appendonly', 'yes', '--maxmemory-policy', 'noeviction']
+    # Loopback only: Redis runs without a password.
     ports:
-      - '${REDIS_PORT:-6379}:6379'
+      - '127.0.0.1:${REDIS_PORT:-6379}:6379'
     volumes:
       - redis-data:/data
     healthcheck:

@@ -129,6 +129,13 @@ export const env = {
   get enableJsRendering(): boolean {
     return bool('ENABLE_JS_RENDERING', false);
   },
+  /**
+   * Let the crawler and user-configured endpoints (webhooks, WordPress, self-hosted APIs) reach
+   * loopback, private and link-local addresses. Off by default: those requests are SSRF.
+   */
+  get allowPrivateNetworkFetch(): boolean {
+    return bool('ALLOW_PRIVATE_NETWORK_FETCH', false);
+  },
   get sampleCrawlUrl(): string | undefined {
     return str('SAMPLE_CRAWL_URL');
   },

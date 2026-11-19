@@ -1,5 +1,5 @@
 import { getAppSetting, prisma, setAppSetting } from '@seo/db';
-import { env } from '@seo/shared';
+import { env, safeLocalPath } from '@seo/shared';
 import { encryptJson, randomToken, tryDecryptJson } from '@seo/shared/crypto';
 import { httpRequest, providerMessage, type HttpResult } from '../adapters/http';
 import { readNumber, readRecord, readString } from '../serp/http';
@@ -140,8 +140,7 @@ export async function startPersonalOAuth(input: {
 
 /** Only in-app paths: a callback must never become an open redirect. */
 export function safeReturnTo(value: string | null | undefined): string {
-  if (!value || !value.startsWith('/') || value.startsWith('//') || value.includes('\\')) return '/accounts';
-  return value;
+  return safeLocalPath(value) ?? '/accounts';
 }
 
 function validState(state: string | null): state is string {

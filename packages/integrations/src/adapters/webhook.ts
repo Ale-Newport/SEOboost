@@ -371,6 +371,7 @@ export class WebhookAdapter implements WebsiteAdapter {
 
     try {
       const res = await httpRequest(this.url, {
+        userSuppliedUrl: true,
         method: 'POST',
         rawBody: body,
         timeoutMs: this.timeoutMs,

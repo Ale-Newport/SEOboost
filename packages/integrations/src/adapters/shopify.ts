@@ -187,6 +187,7 @@ export class ShopifyAdapter implements WebsiteAdapter {
   private request(path: string, opts: HttpRequestOptions = {}): Promise<HttpResult> {
     return httpRequest(this.url(path), {
       ...opts,
+      userSuppliedUrl: true,
       timeoutMs: opts.timeoutMs ?? this.timeoutMs,
       headers: {
         'x-shopify-access-token': this.credentials.accessToken,

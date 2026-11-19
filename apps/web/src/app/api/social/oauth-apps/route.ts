@@ -10,7 +10,7 @@ import {
 } from '@seo/integrations';
 import { ValidationError, createLogger } from '@seo/shared';
 import { readBody, readQuery, route } from '@/lib/api';
-import { assertNotReadOnly } from '@/app/api/_lib/common';
+import { ADMIN_ROLES, assertNotReadOnly, requireRole } from '@/app/api/_lib/common';
 
 const log = createLogger('api:social-oauth-apps');
 
@@ -49,7 +49,10 @@ const saveSchema = z.object({
   clientSecret: z.string().max(2_000).optional(),
 });
 
-export const POST = route(async ({ request }) => {
+// Installation-wide credentials: a non-admin account (e.g. a later signup) must not be able to
+// swap the client id/secret and route every operator's OAuth grant through its own app.
+export const POST = route(async ({ user, request }) => {
+  requireRole(user, ADMIN_ROLES);
   const body = await readBody(request, saveSchema);
   await assertNotReadOnly();
   const platform = asPlatform(body.platform);
@@ -65,7 +68,8 @@ export const POST = route(async ({ request }) => {
 
 const deleteSchema = z.object({ platform: platformSchema });
 
-export const DELETE = route(async ({ request }) => {
+export const DELETE = route(async ({ user, request }) => {
+  requireRole(user, ADMIN_ROLES);
   const query = readQuery(request, deleteSchema);
   await assertNotReadOnly();
   const platform = asPlatform(query.platform);

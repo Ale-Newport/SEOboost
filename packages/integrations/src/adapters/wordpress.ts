@@ -185,6 +185,7 @@ export class WordPressAdapter implements WebsiteAdapter {
   private request(path: string, opts: HttpRequestOptions = {}): Promise<HttpResult> {
     return httpRequest(this.url(path), {
       ...opts,
+      userSuppliedUrl: true,
       timeoutMs: opts.timeoutMs ?? this.timeoutMs,
       headers: { authorization: this.authorization, ...opts.headers },
     });

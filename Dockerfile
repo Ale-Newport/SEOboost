@@ -39,7 +39,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-cert
     && rm -rf /var/lib/apt/lists/*
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-COPY --from=builder /app /app
+# Run as the image's unprivileged `node` user; it owns /app so Next can write .next/cache.
+COPY --from=builder --chown=node:node /app /app
+USER node
 EXPOSE 3000
 CMD ["npm", "run", "start", "--workspace", "@seo/web"]
 
@@ -51,7 +53,11 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 ENV NODE_ENV=production
-COPY --from=builder /app /app
+# Browsers go to a shared path (not /root/.cache) so the unprivileged user can launch them.
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+COPY --from=builder --chown=node:node /app /app
+# `--with-deps` installs system packages, so this step runs as root; the worker itself does not.
 RUN npx playwright install --with-deps chromium || \
     echo "Playwright browser install failed — JS rendering will report as unavailable, HTTP crawling still works."
+USER node
 CMD ["npm", "run", "start", "--workspace", "@seo/worker"]

@@ -54,6 +54,7 @@ export async function blueskySession(
   if (cached && cached.expiresAt > Date.now()) return cached.session;
 
   const res = await httpRequest(`${service}/xrpc/com.atproto.server.createSession`, {
+    userSuppliedUrl: true,
     method: 'POST',
     body: { identifier, password },
   });
@@ -77,6 +78,7 @@ export async function blueskyXrpc(
   opts: { method?: 'GET' | 'POST'; query?: Record<string, string | number | boolean | undefined>; body?: unknown } = {},
 ): Promise<unknown> {
   const res = await httpRequest(`${session.service}/xrpc/${nsid}`, {
+    userSuppliedUrl: true,
     method: opts.method ?? 'GET',
     ...(opts.query ? { query: opts.query } : {}),
     ...(opts.body !== undefined ? { body: opts.body } : {}),

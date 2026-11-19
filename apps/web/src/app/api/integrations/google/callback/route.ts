@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@seo/db';
-import { createLogger, env, errorMessage } from '@seo/shared';
+import { createLogger, env, errorMessage, safeLocalPath } from '@seo/shared';
 import { constantTimeEquals } from '@seo/shared/crypto';
 import {
   exchangeCode,
@@ -28,9 +28,7 @@ const log = createLogger('api:integrations:google');
  */
 
 function safeRedirect(value: string | undefined): string | null {
-  if (!value) return null;
-  if (!value.startsWith('/') || value.startsWith('//')) return null;
-  return value;
+  return safeLocalPath(value);
 }
 
 function redirectTo(path: string, params: Record<string, string>): NextResponse {

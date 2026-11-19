@@ -1,4 +1,5 @@
 import { createLogger, errorMessage } from '@seo/shared';
+import { assertPublicUrl } from '@seo/shared/ssrf';
 import type { AdapterErrorCode, AdapterResult, JsonObject, JsonValue } from './types';
 import { adapterFail } from './types';
 
@@ -23,6 +24,12 @@ export interface HttpRequestOptions {
   timeoutMs?: number;
   /** Query parameters; `undefined` values are dropped. */
   query?: Record<string, string | number | boolean | undefined>;
+  /**
+   * The URL (or its base) was typed by a user — a webhook, a WordPress site, a self-hosted API.
+   * Refuse private, loopback and cloud-metadata targets, and follow redirects by hand so every
+   * hop is checked. `ALLOW_PRIVATE_NETWORK_FETCH=true` lifts the restriction.
+   */
+  userSuppliedUrl?: boolean;
 }
 
 export interface HttpResult {
@@ -81,13 +88,10 @@ export async function httpRequest(url: string, opts: HttpRequestOptions = {}): P
 
   let response: Response;
   try {
-    response = await fetch(target, {
-      method,
-      headers,
-      body: payload,
-      signal: AbortSignal.timeout(opts.timeoutMs ?? DEFAULT_TIMEOUT_MS),
-      redirect: 'follow',
-    });
+    const signal = AbortSignal.timeout(opts.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+    response = opts.userSuppliedUrl
+      ? await fetchGuarded(target, { method, headers, body: payload, signal })
+      : await fetch(target, { method, headers, body: payload, signal, redirect: 'follow' });
   } catch (err) {
     log.debug('request failed', { url: redactUrlSecrets(target), method, error: errorMessage(err) });
     throw new HttpTransportError(errorMessage(err), err);
@@ -105,6 +109,48 @@ export async function httpRequest(url: string, opts: HttpRequestOptions = {}): P
   }
 
   return { ok: response.ok, status: response.status, body, text, headers: response.headers };
+}
+
+const MAX_REDIRECTS = 5;
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+/** Headers that must not follow a redirect to another origin. */
+const ORIGIN_BOUND_HEADERS = new Set(['authorization', 'cookie', 'proxy-authorization']);
+
+interface GuardedInit {
+  method: string;
+  headers: Record<string, string>;
+  body: string | undefined;
+  signal: AbortSignal;
+}
+
+/**
+ * `fetch` with the SSRF guard applied to the first URL and to every redirect hop, mirroring
+ * the Fetch spec's method rewriting (303, and 301/302 after a POST, become a body-less GET)
+ * and dropping credentials when a redirect leaves the original origin.
+ */
+async function fetchGuarded(target: string, init: GuardedInit): Promise<Response> {
+  let url = target;
+  let { method, body } = init;
+  let headers = { ...init.headers };
+  for (let hop = 0; ; hop++) {
+    await assertPublicUrl(url);
+    const response = await fetch(url, { method, headers, body, signal: init.signal, redirect: 'manual' });
+    const location = REDIRECT_STATUSES.has(response.status) ? response.headers.get('location') : null;
+    if (!location) return response;
+    if (hop >= MAX_REDIRECTS) throw new Error(`Exceeded ${MAX_REDIRECTS} redirects`);
+    await response.body?.cancel().catch(() => undefined);
+
+    const next = new URL(location, url);
+    if (response.status === 303 || ((response.status === 301 || response.status === 302) && method === 'POST')) {
+      method = 'GET';
+      body = undefined;
+      headers = Object.fromEntries(Object.entries(headers).filter(([key]) => key.toLowerCase() !== 'content-type'));
+    }
+    if (next.origin !== new URL(url).origin) {
+      headers = Object.fromEntries(Object.entries(headers).filter(([key]) => !ORIGIN_BOUND_HEADERS.has(key.toLowerCase())));
+    }
+    url = next.toString();
+  }
 }
 
 /** Map an HTTP status onto the adapter error taxonomy. */

@@ -29,6 +29,7 @@ async function api(
   const token = requireCredential(secrets, 'accessToken', LABEL);
   const res = await httpRequest(`${instance(secrets)}${path}`, {
     ...opts,
+    userSuppliedUrl: true,
     headers: { authorization: `Bearer ${token}`, ...(opts.headers ?? {}) },
   });
   if (!res.ok) throw httpFailure(res, LABEL, operation);

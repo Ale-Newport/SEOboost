@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { IntegrationProvider } from '@seo/db';
-import { IntegrationNotConfiguredError, env } from '@seo/shared';
+import { IntegrationNotConfiguredError, env, safeLocalPath } from '@seo/shared';
 import { getAuthUrl, isGoogleOAuthConfigured } from '@seo/integrations/google/oauth';
 import { readQuery, requireWebsite, route } from '@/lib/api';
 import { OAUTH_NONCE_COOKIE } from '@/app/api/_lib/integrations';
@@ -26,9 +26,7 @@ const querySchema = z.object({
 
 /** Only same-app paths are accepted, so the flow cannot be used as an open redirect. */
 function safeRedirect(value: string | undefined): string | null {
-  if (!value) return null;
-  if (!value.startsWith('/') || value.startsWith('//')) return null;
-  return value;
+  return safeLocalPath(value);
 }
 
 export const GET = route(async ({ user, request }) => {

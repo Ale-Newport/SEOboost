@@ -235,3 +235,23 @@ export function slugFromUrl(input: string): string {
   const parts = path.split('/').filter(Boolean);
   return parts.length ? parts[parts.length - 1]!.replace(/\.(html?|php|aspx?)$/i, '') : 'home';
 }
+
+/**
+ * A redirect target that is guaranteed to stay on this origin, or null.
+ *
+ * Starting with a single `/` is not enough: browsers and the WHATWG URL parser treat `\` as `/`
+ * and silently drop tabs and newlines, so `/\evil.com` and `/<TAB>/evil.com` both resolve to
+ * `//evil.com` — another host. Anything with a backslash or a control character is rejected,
+ * and the result is re-checked by resolving it against a dummy origin.
+ */
+export function safeLocalPath(value: string | null | undefined): string | null {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) return null;
+  // eslint-disable-next-line no-control-regex
+  if (/[\\\u0000-\u001f\u007f]/.test(value)) return null;
+  try {
+    const probe = 'http://local.invalid';
+    return new URL(value, probe).origin === probe ? value : null;
+  } catch {
+    return null;
+  }
+}

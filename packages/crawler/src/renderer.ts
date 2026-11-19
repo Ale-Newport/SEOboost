@@ -6,7 +6,8 @@
  * fail because a machine has no Chromium — it just falls back to the static HTML.
  */
 
-import { createLogger, errorMessage } from '@seo/shared';
+import { createLogger, env, errorMessage } from '@seo/shared';
+import { assertPublicUrl } from '@seo/shared/ssrf';
 import { existsSync } from 'node:fs';
 
 const log = createLogger('crawler:renderer');
@@ -20,6 +21,7 @@ export const DEFAULT_NETWORK_IDLE_MS = 5_000;
  */
 interface PwRequest {
   resourceType(): string;
+  url(): string;
 }
 
 interface PwRoute {
@@ -230,14 +232,29 @@ export async function createRenderer(options: RendererOptions = {}): Promise<Ren
 
       let page: PwPage | null = null;
       try {
+        // SSRF guard: the page itself, and (below) every request its scripts make.
+        const guardNetwork = !env.allowPrivateNetworkFetch;
+        if (guardNetwork) await assertPublicUrl(url);
+
         const ctx = await ensureContext();
         page = await ctx.newPage();
 
-        if (blockAssets) {
+        if (blockAssets || guardNetwork) {
           await page.route('**/*', async (route) => {
-            if (BLOCKED_RESOURCE_TYPES.has(route.request().resourceType())) {
+            const request = route.request();
+            if (blockAssets && BLOCKED_RESOURCE_TYPES.has(request.resourceType())) {
               await route.abort().catch(() => undefined);
               return;
+            }
+            if (guardNetwork && /^https?:/i.test(request.url())) {
+              const allowed = await assertPublicUrl(request.url()).then(
+                () => true,
+                () => false,
+              );
+              if (!allowed) {
+                await route.abort().catch(() => undefined);
+                return;
+              }
             }
             await route.continue().catch(() => undefined);
           });

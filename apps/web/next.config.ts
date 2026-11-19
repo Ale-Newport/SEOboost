@@ -18,6 +18,7 @@ loadEnvFile({ path: resolve(here, '.env') });
 
 const config: NextConfig = {
   reactStrictMode: true,
+  poweredByHeader: false,
   // Workspace packages ship TypeScript source; Next compiles them in-place.
   transpilePackages: [
     '@seo/shared',
@@ -43,6 +44,13 @@ const config: NextConfig = {
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+          // Only the clickjacking directive: a full CSP needs nonces for Next's inline scripts.
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'" },
+          // Browsers ignore HSTS on plain-http responses, so this is inert on a LAN/http install.
+          // No includeSubDomains: the operator's other subdomains are not ours to pin.
+          ...(process.env.NODE_ENV === 'production'
+            ? [{ key: 'Strict-Transport-Security', value: 'max-age=31536000' }]
+            : []),
         ],
       },
     ];

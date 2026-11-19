@@ -86,10 +86,40 @@ export function handleRouteError(err: unknown, label: string, durationMs?: numbe
 }
 
 /** Parse and validate a JSON request body. */
+/**
+ * Largest JSON body any API route accepts. Generous enough for CSV-style imports, small enough
+ * that an oversized payload cannot exhaust memory during parsing or schema validation.
+ */
+export const MAX_JSON_BODY_BYTES = 5 * 1024 * 1024;
+
+/** Read a request body as text, refusing anything over `limit` bytes without buffering it all. */
+export async function readTextWithLimit(request: Request, limit = MAX_JSON_BODY_BYTES): Promise<string> {
+  const declared = Number(request.headers.get('content-length'));
+  if (Number.isFinite(declared) && declared > limit) {
+    throw new ValidationError(`Request body is too large (limit ${Math.round(limit / 1024)} KB).`);
+  }
+  if (!request.body) return '';
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > limit) {
+      await reader.cancel().catch(() => undefined);
+      throw new ValidationError(`Request body is too large (limit ${Math.round(limit / 1024)} KB).`);
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks).toString('utf8');
+}
+
 export async function readBody<T extends ZodTypeAny>(request: Request, schema: T): Promise<z.infer<T>> {
+  const text = await readTextWithLimit(request);
   let raw: unknown;
   try {
-    raw = await request.json();
+    raw = JSON.parse(text);
   } catch {
     throw new ValidationError('Request body must be valid JSON.');
   }

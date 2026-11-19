@@ -305,6 +305,7 @@ export async function mastodonAppFor(instanceUrl: string, redirectUri: string): 
   if (cached && cached.redirectUri === redirectUri) return { clientId: cached.clientId, clientSecret: cached.clientSecret };
 
   const res = await httpRequest(`${instanceUrl}/api/v1/apps`, {
+    userSuppliedUrl: true,
     method: 'POST',
     body: { client_name: 'SEO OS', redirect_uris: redirectUri, scopes: MASTODON_SCOPES, website: env.appUrl },
   });
@@ -490,7 +491,7 @@ async function tokenRequest(
     form.set('client_id', app.clientId);
     if (app.clientSecret) form.set('client_secret', app.clientSecret);
   }
-  const res = await httpRequest(spec.tokenUrl(instanceUrl), { method: 'POST', rawBody: form.toString(), headers });
+  const res = await httpRequest(spec.tokenUrl(instanceUrl), { method: 'POST', rawBody: form.toString(), headers, userSuppliedUrl: instanceUrl !== null });
   // Reddit answers some failures with HTTP 200 and `{ error: … }`.
   if (!res.ok || readString(readRecord(res.body)?.error)) throw tokenError(res, spec.label, operation);
   return parseTokenResponse(platform, res.body);
@@ -549,7 +550,7 @@ export interface OAuthIdentity {
 export async function fetchOAuthIdentity(platform: OAuthPlatform, tokens: OAuthTokens, instanceUrl: string | null): Promise<OAuthIdentity> {
   const bearer = { authorization: `Bearer ${tokens.accessToken}` };
   const get = async (url: string, extra: Record<string, string> = {}) => {
-    const res = await httpRequest(url, { headers: { ...bearer, ...extra } });
+    const res = await httpRequest(url, { headers: { ...bearer, ...extra }, userSuppliedUrl: instanceUrl !== null });
     if (!res.ok) throw tokenError(res, OAUTH_PROVIDERS[platform].label, 'identity check');
     return readRecord(res.body);
   };

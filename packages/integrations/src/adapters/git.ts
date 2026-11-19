@@ -201,6 +201,7 @@ export class GitAdapter implements WebsiteAdapter {
   private request(path: string, opts: HttpRequestOptions = {}): Promise<HttpResult> {
     return httpRequest(`${this.apiBase}${path}`, {
       ...opts,
+      userSuppliedUrl: true,
       timeoutMs: opts.timeoutMs ?? this.timeoutMs,
       headers: {
         authorization: `Bearer ${this.credentials.token}`,

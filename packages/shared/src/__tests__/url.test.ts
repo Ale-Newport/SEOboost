@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   cleanDomain, getPath, hasNonHtmlExtension, isSameSite, looksLikeCrawlTrap,
-  matchesPattern, normalizeUrl, resolveUrl, slugFromUrl, urlDepth,
+  matchesPattern, normalizeUrl, resolveUrl, safeLocalPath, slugFromUrl, urlDepth,
 } from '../url';
 
 describe('normalizeUrl', () => {
@@ -109,5 +109,21 @@ describe('matchesPattern', () => {
     expect(matchesPattern('https://example.com/blog/x', ['*/blog/*'])).toBe(true);
     expect(matchesPattern('https://example.com/shop/x', ['*/blog/*'])).toBe(false);
     expect(matchesPattern('https://example.com/x', [])).toBe(false);
+  });
+});
+
+describe('safeLocalPath', () => {
+  it('keeps same-origin paths', () => {
+    expect(safeLocalPath('/settings')).toBe('/settings');
+    expect(safeLocalPath('/onboarding?step=5&site=abc')).toBe('/onboarding?step=5&site=abc');
+  });
+
+  it('rejects anything that can leave the origin', () => {
+    for (const value of [
+      undefined, null, '', 'settings', 'https://evil.com', '//evil.com', '/\\evil.com', '/\\/evil.com',
+      '/\t/evil.com', '/\n/evil.com', '/\r//evil.com', 'javascript:alert(1)',
+    ]) {
+      expect(safeLocalPath(value)).toBeNull();
+    }
   });
 });
