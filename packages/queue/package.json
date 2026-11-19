@@ -13,7 +13,7 @@
     "@seo/db": "*",
     "@seo/shared": "*",
     "bullmq": "5.81.4",
-    "ioredis": "5.11.1"
+    "ioredis": "6.0.0"
   },
   "sideEffects": false,
   "license": "MIT"
