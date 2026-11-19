@@ -65,4 +65,4 @@ that has deliberately turned a safeguard off (for example `ALLOW_PRIVATE_NETWORK
 
 | Package | Advisory | Status |
 |---------|----------|--------|
-| `zod` 3.25.76 | Memory exhaustion when validating oversized constrained collections (fixed in 4.6.6) | Request bodies are size-limited by the API layer. The fix requires the zod 4 migration, tracked in the issue tracker. |
+| `zod` 3.25.76 | Memory exhaustion when validating oversized constrained collections (fixed in 4.6.6) | Request bodies are size-limited by the API layer. The fix requires the zod 4 migration, tracked in [#6](https://github.com/Ale-Newport/SEOboost/issues/6). |

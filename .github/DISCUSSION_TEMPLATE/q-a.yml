@@ -1,0 +1,21 @@
+labels: [question]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+      description: What are you trying to do, and what happened?
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How do you run SEO OS?
+      options: [Docker Compose, Node (npm run dev), Node (production build), Not installed yet]
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: What have you tried?
+      description: Commands, settings, relevant logs. Remove API keys and private data.
