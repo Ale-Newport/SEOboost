@@ -1,0 +1,57 @@
+name: Bug report
+description: Something is broken or behaves incorrectly
+labels: [bug, triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report! Please **do not** include API keys, tokens, passwords or private site data.
+        Security problems go through [private reporting](https://github.com/Ale-Newport/SEOboost/security/advisories/new) instead.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: A clear description of the bug.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Go to …
+        2. Click …
+        3. See error
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [Crawler / audit, Search Console / analytics, Keywords, Content pipeline, Internal links, GEO / AI visibility, Social, Mail & accounts, Automation / CMS adapters, Agents / AI providers, Worker / jobs, Install / Docker, Other]
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How do you run it?
+      options: [Docker Compose, Node (npm run dev), Node (production build), Other]
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: v1.0.0 or a commit SHA
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Web or worker output. Remove anything sensitive.
+      render: shell

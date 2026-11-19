@@ -8,15 +8,27 @@ coverage/
 *.tsbuildinfo
 
 .env
-.env.local
-.env.*.local
+.env.*
 !.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+credentials*.json
+service-account*.json
+*.sqlite
+*.db
+dump.rdb
+*.log
 
 npm-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
 .DS_Store
+Thumbs.db
+*.swp
 .idea/
 .vscode/*
 !.vscode/extensions.json
@@ -33,3 +45,4 @@ packages/db/prisma/migrations/**/migration_lock.toml.bak
 # A team-wide .claude/settings.json can still be committed if you ever want one.
 .claude/launch.json
 .claude/settings.local.json
+.claude/worktrees/

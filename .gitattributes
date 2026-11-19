@@ -1,0 +1,22 @@
+# Normalise line endings in the repository; check out with the platform default.
+* text=auto eol=lf
+
+*.sh      text eol=lf
+*.cmd     text eol=crlf
+*.bat     text eol=crlf
+
+# Binary assets
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.gif     binary
+*.webp    binary
+*.ico     binary
+*.woff    binary
+*.woff2   binary
+*.pdf     binary
+
+# Generated files: collapse in diffs and keep out of language statistics.
+package-lock.json  linguist-generated=true -diff
+packages/db/prisma/migrations/**/*.sql linguist-generated=true
+docs/**   linguist-documentation

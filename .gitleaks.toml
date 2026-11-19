@@ -1,0 +1,22 @@
+# Gitleaks configuration: the default ruleset plus a narrow allowlist of reviewed
+# false positives. Never allowlist a real credential — rotate it instead.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Reviewed false positives"
+paths = [
+  # Twitter's published OAuth 1.0a signing example (developer.twitter.com docs), used as a
+  # known-answer test vector. These are documentation values, not credentials.
+  '''packages/integrations/src/social/__tests__/publishers\.test\.ts''',
+]
+regexTarget = "match"
+regexes = [
+  # Empty example values in .env.example match generic-api-key across line breaks.
+  '''(?s)=""\s*\n[A-Z0-9_]+=''',
+  # Build-time placeholders in the Dockerfile and CI (never used at runtime).
+  '''build-time-placeholder''',
+  '''YnVpbGQtdGltZS1wbGFjZWhvbGRlci0zMmJ5dGVzIQ==''',
+  '''Y2ktYnVpbGQtcGxhY2Vob2xkZXItMzItYnl0ZXMhIQ==''',
+  '''Y2ktZTJlLXBsYWNlaG9sZGVyLWtleS0zMi1ieXRlcyE=''',
+]

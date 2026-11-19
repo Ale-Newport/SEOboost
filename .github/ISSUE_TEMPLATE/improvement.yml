@@ -1,0 +1,23 @@
+name: Improvement
+description: Make something that already exists better (UX, performance, docs, code quality)
+labels: [improvement, triage]
+body:
+  - type: textarea
+    id: current
+    attributes:
+      label: What exists today
+    validations:
+      required: true
+  - type: textarea
+    id: better
+    attributes:
+      label: What would be better
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options: [UX / accessibility, Performance, Documentation, Code quality / refactor, Tests, Developer experience]
+    validations:
+      required: true
