@@ -91,12 +91,8 @@ export function PageQueriesTable({
       },
       {
         id: 'expectedCtr',
-        header: (
-          <span className="inline-flex items-center gap-1">
-            Expected
-            <TooltipInfo content={CTR_GAP_INFO} label="What expected CTR means" />
-          </span>
-        ),
+        header: 'Expected',
+        headerInfo: <TooltipInfo content={CTR_GAP_INFO} label="What expected CTR means" />,
         headerLabel: 'Expected CTR',
         accessor: (row) => row.expectedCtr,
         sortable: true,

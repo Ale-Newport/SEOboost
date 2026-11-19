@@ -23,7 +23,7 @@ export async function signUp(page: Page, account: ReturnType<typeof testAccount>
 export async function signIn(page: Page, account: { email: string; password: string }) {
   await page.goto('/login');
   await page.getByLabel(/email/i).fill(account.email);
-  await page.getByLabel(/password/i).fill(account.password);
+  await page.getByRole('textbox', { name: 'Password', exact: true }).fill(account.password);
   await page.getByRole('button', { name: /sign in|log in/i }).click();
   await page.waitForURL((url) => !url.pathname.startsWith('/login'), { timeout: 30_000 });
 }

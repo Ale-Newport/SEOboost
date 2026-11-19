@@ -355,12 +355,8 @@ export function ContentPipelineView({
       },
       {
         id: 'qualityScore',
-        header: (
-          <span className="inline-flex items-center gap-1">
-            Quality
-            <TooltipInfo content="0–100 from the QUALITY_REVIEW stage: thin sections, keyword stuffing, AI tells and unresolved [VERIFY] markers. Blank until that stage has run on this draft." />
-          </span>
-        ),
+        header: 'Quality',
+        headerInfo: <TooltipInfo content="0–100 from the QUALITY_REVIEW stage: thin sections, keyword stuffing, AI tells and unresolved [VERIFY] markers. Blank until that stage has run on this draft." />,
         headerLabel: 'Quality',
         accessor: (row) => row.qualityScore,
         align: 'right',
@@ -369,12 +365,8 @@ export function ContentPipelineView({
       },
       {
         id: 'seoScore',
-        header: (
-          <span className="inline-flex items-center gap-1">
-            SEO
-            <TooltipInfo content="0–100 from the SEO_OPTIMISATION stage: title and meta lengths, heading structure, keyword coverage and over-optimisation. Blank until that stage has run." />
-          </span>
-        ),
+        header: 'SEO',
+        headerInfo: <TooltipInfo content="0–100 from the SEO_OPTIMISATION stage: title and meta lengths, heading structure, keyword coverage and over-optimisation. Blank until that stage has run." />,
         headerLabel: 'SEO',
         accessor: (row) => row.seoScore,
         align: 'right',
@@ -383,12 +375,8 @@ export function ContentPipelineView({
       },
       {
         id: 'geoScore',
-        header: (
-          <span className="inline-flex items-center gap-1">
-            GEO
-            <TooltipInfo content="0–100 generative-engine readiness: entity clarity, fact density, structure and citation-worthiness. Blank until the GEO pass has scored this draft." />
-          </span>
-        ),
+        header: 'GEO',
+        headerInfo: <TooltipInfo content="0–100 generative-engine readiness: entity clarity, fact density, structure and citation-worthiness. Blank until the GEO pass has scored this draft." />,
         headerLabel: 'GEO',
         accessor: (row) => row.geoScore,
         align: 'right',
@@ -398,12 +386,8 @@ export function ContentPipelineView({
       },
       {
         id: 'readabilityScore',
-        header: (
-          <span className="inline-flex items-center gap-1">
-            Readability
-            <TooltipInfo content="Flesch reading ease over the draft body: 0–100, higher is easier. 60–70 is plain English. Blank until the draft has body text to measure." />
-          </span>
-        ),
+        header: 'Readability',
+        headerInfo: <TooltipInfo content="Flesch reading ease over the draft body: 0–100, higher is easier. 60–70 is plain English. Blank until the draft has body text to measure." />,
         headerLabel: 'Readability',
         accessor: (row) => row.readabilityScore,
         align: 'right',

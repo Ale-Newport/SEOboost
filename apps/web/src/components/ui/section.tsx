@@ -46,6 +46,9 @@ export interface SectionTitleProps extends React.HTMLAttributes<HTMLHeadingEleme
   as?: 'h2' | 'h3' | 'h4';
 }
 
+// Title and description are pinned to column 1 (`col-start-1`): without a `SectionActions`
+// sibling the header grid would auto-place the description into the `auto` actions column,
+// where a long description squeezes the title until the two overlap.
 const SectionTitle = React.forwardRef<HTMLHeadingElement, SectionTitleProps>(function SectionTitle(
   { as: Heading = 'h2', className, ...props },
   ref,
@@ -53,7 +56,7 @@ const SectionTitle = React.forwardRef<HTMLHeadingElement, SectionTitleProps>(fun
   return (
     <Heading
       ref={ref}
-      className={cn('text-sm font-semibold leading-tight tracking-tight text-foreground', className)}
+      className={cn('col-start-1 text-sm font-semibold leading-tight tracking-tight text-foreground', className)}
       {...props}
     />
   );
@@ -61,7 +64,7 @@ const SectionTitle = React.forwardRef<HTMLHeadingElement, SectionTitleProps>(fun
 
 const SectionDescription = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLParagraphElement>>(
   function SectionDescription({ className, ...props }, ref) {
-    return <p ref={ref} className={cn('text-sm leading-relaxed text-muted-foreground', className)} {...props} />;
+    return <p ref={ref} className={cn('col-start-1 text-sm leading-relaxed text-muted-foreground', className)} {...props} />;
   },
 );
 

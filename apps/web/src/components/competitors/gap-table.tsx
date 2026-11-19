@@ -199,12 +199,8 @@ export function GapTable({ websiteId, gaps, counts, competitorDomains }: GapTabl
       },
       {
         id: 'gapScore',
-        header: (
-          <span className="inline-flex items-center gap-1">
-            Gap score
-            <TooltipInfo content={GAP_SCORE_EXPLANATION} label="How the gap score is calculated" />
-          </span>
-        ),
+        header: 'Gap score',
+        headerInfo: <TooltipInfo content={GAP_SCORE_EXPLANATION} label="How the gap score is calculated" />,
         headerLabel: 'Gap score',
         accessor: (row) => row.gapScore,
         cell: (row) => (

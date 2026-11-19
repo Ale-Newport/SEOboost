@@ -5,7 +5,7 @@ test.describe('authentication', () => {
   test('rejects an unknown account without revealing which field was wrong', async ({ page }) => {
     await page.goto('/login');
     await page.getByLabel(/email/i).fill('nobody@example.test');
-    await page.getByLabel(/password/i).fill('definitely-not-the-password');
+    await page.getByRole('textbox', { name: 'Password', exact: true }).fill('definitely-not-the-password');
     await page.getByRole('button', { name: /sign in|log in/i }).click();
 
     const error = page.getByText(/incorrect email or password/i);

@@ -242,12 +242,8 @@ export function LinkSuggestionsPanel({
       },
       {
         id: 'relevance',
-        header: (
-          <span className="inline-flex items-center gap-1">
-            Relevance
-            <TooltipInfo content={RELEVANCE_EXPLANATION} label="How relevance is calculated" />
-          </span>
-        ),
+        header: 'Relevance',
+        headerInfo: <TooltipInfo content={RELEVANCE_EXPLANATION} label="How relevance is calculated" />,
         headerLabel: 'Relevance',
         align: 'right',
         width: 110,
@@ -259,12 +255,8 @@ export function LinkSuggestionsPanel({
       },
       {
         id: 'impact',
-        header: (
-          <span className="inline-flex items-center gap-1">
-            Impact
-            <TooltipInfo content={IMPACT_EXPLANATION} label="How impact is calculated" />
-          </span>
-        ),
+        header: 'Impact',
+        headerInfo: <TooltipInfo content={IMPACT_EXPLANATION} label="How impact is calculated" />,
         headerLabel: 'Impact',
         align: 'right',
         width: 110,

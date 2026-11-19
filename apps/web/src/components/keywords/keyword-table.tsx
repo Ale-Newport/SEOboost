@@ -158,7 +158,7 @@ export function KeywordTable({
         accessor: (row) => row.currentPosition,
         sortable: true,
         align: 'right',
-        width: 96,
+        width: 116,
         exportValue: (row) => row.currentPosition,
         cell: (row) =>
           row.currentPosition === null ? (
@@ -179,7 +179,7 @@ export function KeywordTable({
         accessor: (row) => row.positionChange,
         sortable: true,
         align: 'right',
-        width: 84,
+        width: 104,
         cell: (row) => <PositionChange change={row.positionChange} />,
       },
       {
@@ -188,7 +188,7 @@ export function KeywordTable({
         accessor: (row) => row.clicks28d,
         sortable: true,
         align: 'right',
-        width: 88,
+        width: 96,
         cell: (row) => <span className="tabular text-sm">{formatNumber(row.clicks28d)}</span>,
       },
       {
@@ -197,7 +197,7 @@ export function KeywordTable({
         accessor: (row) => row.impressions28d,
         sortable: true,
         align: 'right',
-        width: 108,
+        width: 132,
         cell: (row) => (
           <span className="tabular text-sm text-muted-foreground">{formatCompact(row.impressions28d)}</span>
         ),
@@ -222,7 +222,7 @@ export function KeywordTable({
         accessor: (row) => row.searchVolume,
         sortable: true,
         align: 'right',
-        width: 90,
+        width: 100,
         cell: (row) => (
           <span className="tabular text-sm text-muted-foreground">
             {row.searchVolume === null ? '—' : formatCompact(row.searchVolume)}
@@ -231,12 +231,8 @@ export function KeywordTable({
       },
       {
         id: 'difficulty',
-        header: (
-          <span className="inline-flex items-center gap-1">
-            Difficulty
-            <TooltipInfo content="Provider keyword difficulty, 0–100. Higher is harder. Blank when no SERP or keyword-data provider is configured — it is never estimated." />
-          </span>
-        ),
+        header: 'Difficulty',
+        headerInfo: <TooltipInfo content="Provider keyword difficulty, 0–100. Higher is harder. Blank when no SERP or keyword-data provider is configured — it is never estimated." />,
         headerLabel: 'Difficulty',
         accessor: (row) => row.difficulty,
         sortable: true,
@@ -258,12 +254,8 @@ export function KeywordTable({
       },
       {
         id: 'opportunityScore',
-        header: (
-          <span className="inline-flex items-center gap-1">
-            Opportunity
-            <TooltipInfo content="0–100, weighted from ranking headroom, measured demand, topical relevance, business value, competition, content gap, topical authority and AI-search potential. Open a keyword for the full factor-by-factor breakdown." />
-          </span>
-        ),
+        header: 'Opportunity',
+        headerInfo: <TooltipInfo content="0–100, weighted from ranking headroom, measured demand, topical relevance, business value, competition, content gap, topical authority and AI-search potential. Open a keyword for the full factor-by-factor breakdown." />,
         headerLabel: 'Opportunity',
         accessor: (row) => row.opportunityScore,
         sortable: true,

@@ -42,6 +42,12 @@ export interface ColumnDef<T> {
   sticky?: boolean;
   /** Plain-text label for the column menu and CSV header when `header` is not a string. */
   headerLabel?: string;
+  /**
+   * Interactive affordance shown next to the header, typically a `TooltipInfo`. Kept outside the
+   * sort button: a button nested inside another is invalid HTML, breaks hydration and gives
+   * keyboard users one focus stop for two different actions.
+   */
+  headerInfo?: ReactNode;
   className?: string;
   headerClassName?: string;
 }
@@ -637,34 +643,42 @@ export function DataTable<T>({
                       column.headerClassName,
                     )}
                   >
-                    {column.sortable ? (
-                      <button
-                        type="button"
-                        onClick={() => handleSort(column)}
-                        className={cn(
-                          'group -mx-1 inline-flex max-w-full items-center gap-1 rounded-sm px-1 py-0.5 text-2xs font-semibold uppercase tracking-wide transition-colors hover:text-foreground',
-                          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                          isSorted && 'text-foreground',
-                          column.align === 'right' && 'flex-row-reverse',
-                        )}
-                      >
-                        <span className="truncate">{column.header}</span>
-                        {isSorted ? (
-                          activeOrder === 'asc' ? (
-                            <ArrowUp className="size-3 shrink-0" aria-hidden="true" />
+                    <span
+                      className={cn(
+                        'inline-flex max-w-full items-center gap-1',
+                        column.align === 'right' && 'flex-row-reverse',
+                      )}
+                    >
+                      {column.sortable ? (
+                        <button
+                          type="button"
+                          onClick={() => handleSort(column)}
+                          className={cn(
+                            'group -mx-1 inline-flex max-w-full items-center gap-1 rounded-sm px-1 py-0.5 text-2xs font-semibold uppercase tracking-wide transition-colors hover:text-foreground',
+                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                            isSorted && 'text-foreground',
+                            column.align === 'right' && 'flex-row-reverse',
+                          )}
+                        >
+                          <span className="truncate">{column.header}</span>
+                          {isSorted ? (
+                            activeOrder === 'asc' ? (
+                              <ArrowUp className="size-3 shrink-0" aria-hidden="true" />
+                            ) : (
+                              <ArrowDown className="size-3 shrink-0" aria-hidden="true" />
+                            )
                           ) : (
-                            <ArrowDown className="size-3 shrink-0" aria-hidden="true" />
-                          )
-                        ) : (
-                          <ChevronsUpDown
-                            className="size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-60"
-                            aria-hidden="true"
-                          />
-                        )}
-                      </button>
-                    ) : (
-                      column.header
-                    )}
+                            <ChevronsUpDown
+                              className="size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-60"
+                              aria-hidden="true"
+                            />
+                          )}
+                        </button>
+                      ) : (
+                        column.header
+                      )}
+                      {column.headerInfo}
+                    </span>
                   </th>
                 );
               })}
