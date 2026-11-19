@@ -117,6 +117,37 @@ describe('sanitizeGitHubHtml', () => {
     expect(clean).toContain('Title');
     expect(clean).toContain('<p>ok</p>');
   });
+
+  it('removes tags a single pass would reassemble', () => {
+    for (const html of [
+      '<scr<script>ipt>alert(1)</scr<script>ipt>',
+      '<scr<script></script>ipt>alert(1)</script>',
+      '<ifr<iframe>ame src="https://evil.example">',
+      '<img src=x o<script></script>nerror=alert(1)>',
+    ]) {
+      expect(sanitizeGitHubHtml(html)).not.toMatch(/<script|<iframe|onerror/i);
+    }
+  });
+
+  it('strips handlers after a slash and unquoted script URLs', () => {
+    expect(sanitizeGitHubHtml('<img/onerror=alert(1) src="a.png">')).not.toMatch(/onerror/i);
+    expect(sanitizeGitHubHtml('<a href=javascript:alert(1)>x</a>')).toBe('<a href="#">x</a>');
+  });
+
+  it('leaves ordinary GitHub HTML untouched', () => {
+    const html = '<h2><a href="#install">Install</a></h2><pre><code>npm i x</code></pre><img src="https://x/a.png" alt="logo">';
+    expect(sanitizeGitHubHtml(html)).toBe(html);
+  });
+
+  it('escapes markup that is still changing after several passes, quickly', () => {
+    const depth = 5_000;
+    const nested = `${'<scr'.repeat(depth)}<script>${'ipt>'.repeat(depth)}alert(1)`;
+    const started = performance.now();
+    const clean = sanitizeGitHubHtml(nested);
+    expect(performance.now() - started).toBeLessThan(100);
+    expect(clean).not.toContain('<');
+    expect(sanitizeGitHubHtml(`<p${' onx=1'.repeat(8_000)}>`)).toBe('<p>');
+  });
 });
 
 describe('personal OAuth', () => {

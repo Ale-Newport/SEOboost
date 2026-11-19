@@ -4,6 +4,19 @@ import { z } from 'zod';
 import { formatZodIssues, normalizeNullables, parseJsonLoose } from '../structured';
 
 describe('parseJsonLoose', () => {
+  it('reads every complete fence, json-tagged or not', () => {
+    expect(parseJsonLoose('Here:\n```JSON\n{"a":1}\n``` and more')).toEqual({ a: 1 });
+    expect(parseJsonLoose('```javascript {"b":2}```')).toEqual({ b: 2 });
+    expect(parseJsonLoose('```\nnot json\n``` then ```{"c":3}```')).toEqual({ c: 3 });
+  });
+
+  it('scans fences in linear time on adversarial model output', () => {
+    const started = performance.now();
+    expect(() => parseJsonLoose('```'.repeat(17_000))).toThrow();
+    expect(() => parseJsonLoose(`\`\`\`json${' '.repeat(50_000)}x\`\``)).toThrow();
+    expect(performance.now() - started).toBeLessThan(100);
+  });
+
   it('parses a bare JSON object', () => {
     expect(parseJsonLoose('{"a":1}')).toEqual({ a: 1 });
   });

@@ -237,20 +237,40 @@ export async function markNotificationRead(token: string, threadId: string): Pro
   await githubApi(token, `/notifications/threads/${threadId}`, { method: 'PATCH', okStatuses: [205, 304] });
 }
 
+const DANGEROUS_TAGS = 'script|style|iframe|object|embed|form|input|button|textarea|select|meta|link|base|frame|frameset|svg|math';
+const DANGEROUS_PAIRED = new RegExp(`<(${DANGEROUS_TAGS})\\b[^>]*>[\\s\\S]*?<\\/\\1\\s*>`, 'gi');
+const DANGEROUS_TAG = new RegExp(`<\\/?(${DANGEROUS_TAGS})\\b[^>]*>`, 'gi');
+/** Max passes before giving up on the markup; real GitHub HTML is stable after one. */
+const MAX_SANITIZE_PASSES = 5;
+
 /**
  * Strip anything executable from GitHub-rendered HTML before it is shown.
  *
  * GitHub already sanitises what it renders; this is a second line so a README can never run
  * script in the operator's session even if that ever changes. Exported for tests.
+ *
+ * Runs until nothing changes, because one pass can assemble what it removes: `<scr<script>ipt>`
+ * becomes `<script>`. Markup still changing after a few passes is crafted, so it is escaped whole.
  */
 export function sanitizeGitHubHtml(html: string): string {
-  const dangerous = 'script|style|iframe|object|embed|form|input|button|textarea|select|meta|link|base|frame|frameset|svg|math';
+  let current = html;
+  for (let pass = 0; pass < MAX_SANITIZE_PASSES; pass++) {
+    const next = sanitizeGitHubHtmlPass(current);
+    if (next === current) return next;
+    current = next;
+  }
+  return current.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function sanitizeGitHubHtmlPass(html: string): string {
   return html
     // Paired elements go with everything inside them; any stray or self-closing tag goes too.
-    .replace(new RegExp(`<(${dangerous})\\b[^>]*>[\\s\\S]*?<\\/\\1\\s*>`, 'gi'), '')
-    .replace(new RegExp(`<\\/?(${dangerous})\\b[^>]*>`, 'gi'), '')
-    .replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(DANGEROUS_PAIRED, '')
+    .replace(DANGEROUS_TAG, '')
+    // `[\s/]`: browsers also split attributes on `/`, as in `<img/onerror=…>`.
+    .replace(/[\s/]on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
     .replace(/\s(href|src|xlink:href|action|formaction)\s*=\s*("|')\s*(javascript|vbscript|data:text\/html)[^"']*\2/gi, ' $1="#"')
+    .replace(/\s(href|src|xlink:href|action|formaction)\s*=\s*(javascript|vbscript|data:text\/html)[^\s>]*/gi, ' $1="#"')
     .replace(/\sstyle\s*=\s*("[^"]*"|'[^']*')/gi, '');
 }
 

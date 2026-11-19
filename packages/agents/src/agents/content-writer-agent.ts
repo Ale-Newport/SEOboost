@@ -84,10 +84,29 @@ export function nextStage(stage: ContentStage): ContentStage | null {
   return STAGE_ORDER[index + 1] ?? null;
 }
 
-/** Claims the drafting step could not support; the writer marks them inline. */
+/**
+ * Claims the drafting step could not support; the writer marks them inline.
+ *
+ * Same captures as `/\[VERIFY:\s*([^\]]+)\]/gi`, found with indexOf: that regex backtracks
+ * quadratically on model output with a long unclosed `[VERIFY:` (overlapping `\s*` and `[^\]]+`).
+ */
 export function extractVerifyMarkers(markdown: string): string[] {
-  const matches = markdown.matchAll(/\[VERIFY:\s*([^\]]+)\]/gi);
-  return unique([...matches].map((match) => (match[1] ?? '').trim()).filter(Boolean));
+  const markers: string[] = [];
+  const open = /\[VERIFY:/gi;
+  let match = open.exec(markdown);
+  while (match) {
+    const start = match.index + match[0].length;
+    const close = markdown.indexOf(']', start);
+    // No `]` after this marker means none after any later one either.
+    if (close === -1) break;
+    // `[VERIFY:]` captures nothing; the regex moves on without consuming it.
+    if (close > start) {
+      markers.push(markdown.slice(start, close).trim());
+      open.lastIndex = close + 1;
+    }
+    match = open.exec(markdown);
+  }
+  return unique(markers.filter(Boolean));
 }
 
 /**

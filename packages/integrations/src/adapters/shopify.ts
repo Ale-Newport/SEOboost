@@ -10,6 +10,7 @@ import {
   readNumber,
   readRecord,
   readString,
+  removeHtmlTags,
   toJsonObject,
   trimTrailingSlash,
   type HttpRequestOptions,
@@ -945,7 +946,7 @@ export function nextPageInfo(linkHeader: string | null): string | undefined {
   if (!linkHeader) return undefined;
   for (const part of linkHeader.split(',')) {
     if (!/rel="?next"?/i.test(part)) continue;
-    const url = /<([^>]+)>/.exec(part)?.[1];
+    const url = /<([^<>]+)>/.exec(part)?.[1];
     if (!url) continue;
     const match = /[?&]page_info=([^&]+)/.exec(url);
     if (match?.[1]) return decodeURIComponent(match[1]);
@@ -961,9 +962,9 @@ function parseArticleCursor(cursor: string | undefined): { blogId: number; pageI
   return { blogId, pageInfo: pageInfo || undefined };
 }
 
+/** Summary HTML → plain-text excerpt (rendered as React text, never as HTML). */
 function stripHtml(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, '')
+  return removeHtmlTags(html)
     .replace(/&nbsp;/g, ' ')
     .replace(/&amp;/g, '&')
     .trim();

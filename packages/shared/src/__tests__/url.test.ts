@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   cleanDomain, getPath, hasNonHtmlExtension, isSameSite, looksLikeCrawlTrap,
-  matchesPattern, normalizeUrl, resolveUrl, safeLocalPath, slugFromUrl, urlDepth,
+  matchesPattern, normalizeUrl, resolveUrl, safeLocalPath, slugFromUrl, trimTrailingSlashes, urlDepth,
 } from '../url';
 
 describe('normalizeUrl', () => {
@@ -55,6 +55,31 @@ describe('resolveUrl', () => {
       expect(resolveUrl('https://example.com/', href)).toBeNull();
     }
   });
+
+  it('rejects script schemes however they are spelled', () => {
+    // The URL parser strips tabs/newlines, so these all resolve to a script scheme.
+    for (const href of ['vbscript:msgbox(1)', 'JavaScript:x', ' java\nscript:x', 'java\tscript:x', 'SMS:+1', 'Data:text/html,x']) {
+      expect(resolveUrl('https://example.com/', href)).toBeNull();
+    }
+    expect(resolveUrl('https://example.com/', 'ftp://files.example.com/a')).toBe('ftp://files.example.com/a');
+  });
+});
+
+describe('trimTrailingSlashes', () => {
+  it('drops every trailing slash and nothing else', () => {
+    expect(trimTrailingSlashes('https://example.com///')).toBe('https://example.com');
+    expect(trimTrailingSlashes('https://example.com/a/b')).toBe('https://example.com/a/b');
+    expect(trimTrailingSlashes('///')).toBe('');
+    expect(trimTrailingSlashes('')).toBe('');
+  });
+
+  it('stays linear on a long slash run that does not end the string', () => {
+    const input = `a b${'/'.repeat(50_000)}x`;
+    const started = performance.now();
+    expect(trimTrailingSlashes(input)).toBe(input);
+    expect(cleanDomain(input)).toBe(input);
+    expect(performance.now() - started).toBeLessThan(100);
+  });
 });
 
 describe('site membership', () => {
@@ -68,6 +93,8 @@ describe('site membership', () => {
   it('cleans user-entered domains', () => {
     expect(cleanDomain('https://www.Example.com/path?q=1')).toBe('example.com');
     expect(cleanDomain('example.com')).toBe('example.com');
+    // Not parseable as a host: falls back to the trimmed, lower-cased input minus trailing slashes.
+    expect(cleanDomain(' Not A Host// ')).toBe('not a host');
   });
 });
 

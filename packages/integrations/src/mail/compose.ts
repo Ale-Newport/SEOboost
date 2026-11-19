@@ -7,7 +7,8 @@ import type { MailAddress, MailMessage, OutgoingMessage } from './types';
  * other client group messages by them, and a reply that loses them lands as a new conversation.
  */
 
-const REPLY_PREFIX = /^\s*(re|aw|sv|antw|r)\s*(\[\d+\])?\s*:\s*/i;
+// No `\s*` sits next to another `\s*`: `\s*(\[\d+\])?\s*` backtracks quadratically on long space runs.
+const REPLY_PREFIX = /^\s*(re|aw|sv|antw|r)\s*(?:\[\d+\]\s*)?:/i;
 const FORWARD_PREFIX = /^\s*(fwd?|fw|rv|wg|tr)\s*:\s*/i;
 
 /** `Re: <subject>` without stacking ("Re: Re: Re:"). */
@@ -48,9 +49,9 @@ export function parseRecipients(input: string): { valid: MailAddress[]; invalid:
   for (const raw of input.split(/[,;\n]/)) {
     const part = raw.trim();
     if (!part) continue;
-    const angled = part.match(/^(.*?)\s*<([^>]+)>$/);
-    const name = angled ? angled[1]!.replace(/^"|"$/g, '').trim() || null : null;
-    const address = (angled ? angled[2]! : part).trim();
+    const angled = splitAngleAddress(part);
+    const name = angled ? angled.name.replace(/^"|"$/g, '').trim() || null : null;
+    const address = (angled ? angled.address : part).trim();
     if (!isValidAddress(address)) {
       invalid.push(part);
       continue;
@@ -142,4 +143,17 @@ export function buildResponse(input: {
           threadId: original.threadId,
         }),
   };
+}
+
+/**
+ * `Name <address>` → its parts, as `/^(.*?)\s*<([^>]+)>$/` would split it, without that regex's
+ * quadratic backtracking (`(.*?)\s*` overlap, and a rescan from every `<`). The address is the text
+ * between the first `<` after the last inner `>` and the closing `>`.
+ */
+function splitAngleAddress(part: string): { name: string; address: string } | null {
+  if (!part.endsWith('>')) return null;
+  const body = part.slice(0, -1);
+  const open = body.indexOf('<', body.lastIndexOf('>') + 1);
+  if (open === -1 || open === body.length - 1) return null;
+  return { name: body.slice(0, open).trimEnd(), address: body.slice(open + 1) };
 }

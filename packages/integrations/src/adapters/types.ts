@@ -14,6 +14,8 @@
  *    which is honest and lets the UI disable "roll back" for that change.
  */
 
+import { trimTrailingSlashes } from '@seo/shared';
+
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
 export type JsonObject = { [key: string]: JsonValue };
@@ -254,5 +256,5 @@ export interface AdapterSiteContext {
 }
 
 export function siteUrlFor(domain: string, protocol: string): string {
-  return `${protocol || 'https'}://${domain.replace(/\/+$/, '')}`;
+  return `${protocol || 'https'}://${trimTrailingSlashes(domain)}`;
 }

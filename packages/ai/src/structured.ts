@@ -233,11 +233,7 @@ function* jsonCandidates(text: string): Generator<string> {
   if (!trimmed) return;
   yield trimmed;
 
-  const fence = /```(?:json|json5|javascript)?\s*\n?([\s\S]*?)```/gi;
-  for (const match of trimmed.matchAll(fence)) {
-    const inner = match[1]?.trim();
-    if (inner) yield inner;
-  }
+  for (const inner of fencedBlocks(trimmed)) yield inner;
 
   // Unterminated fence: the model started ```json and ran out of tokens.
   const openFence = trimmed.match(/```(?:json|json5|javascript)?\s*\n?([\s\S]*)$/i);
@@ -256,6 +252,32 @@ function* jsonCandidates(text: string): Generator<string> {
     spans.sort((a, b) => a.start - b.start);
     for (const span of spans) yield span.text;
   }
+}
+
+/**
+ * Trimmed bodies of every complete ``` fence, as `/```(?:json|json5|javascript)?\s*\n?([\s\S]*?)```/gi`
+ * would capture them, but in linear time: that regex's `\s*\n?` overlap and its rescan from every
+ * unclosed fence are quadratic on long model output.
+ */
+function fencedBlocks(text: string): string[] {
+  const blocks: string[] = [];
+  let from = 0;
+  for (;;) {
+    const open = text.indexOf('```', from);
+    if (open === -1) break;
+    let bodyStart = open + 3;
+    // Same precedence as the alternation: `json` wins over `json5`.
+    const lang = text.slice(bodyStart, bodyStart + 10).toLowerCase();
+    if (lang.startsWith('json')) bodyStart += 4;
+    else if (lang === 'javascript') bodyStart += 10;
+    const close = text.indexOf('```', bodyStart);
+    // No closing fence here means none for any later opening one either.
+    if (close === -1) break;
+    const inner = text.slice(bodyStart, close).trim();
+    if (inner) blocks.push(inner);
+    from = close + 3;
+  }
+  return blocks;
 }
 
 /**

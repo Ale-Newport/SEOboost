@@ -1,4 +1,4 @@
-import { createLogger, errorMessage } from '@seo/shared';
+import { createLogger, errorMessage, trimTrailingSlashes } from '@seo/shared';
 import { assertPublicUrl } from '@seo/shared/ssrf';
 import type { AdapterErrorCode, AdapterResult, JsonObject, JsonValue } from './types';
 import { adapterFail } from './types';
@@ -191,7 +191,7 @@ export function providerMessage(res: HttpResult, fallback = ''): string {
   if (fallback) return fallback;
   // A block page, login wall or CDN error is HTML; quoting 300 characters of CSS helps nobody.
   if (/^\s*</.test(res.text)) {
-    const title = res.text.match(/<title[^>]*>([^<]{1,120})<\/title>/i)?.[1]?.trim();
+    const title = res.text.match(/<title[^<>]*>([^<]{1,120})<\/title>/i)?.[1]?.trim();
     return `HTTP ${res.status}: the server answered with an HTML page${title ? ` ("${title}")` : ''} instead of JSON — usually a block page or a login wall`;
   }
   return res.text.slice(0, 300) || `HTTP ${res.status}`;
@@ -282,5 +282,25 @@ export function readIsoDate(value: unknown): string | undefined {
 }
 
 export function trimTrailingSlash(url: string): string {
-  return url.replace(/\/+$/, '');
+  return trimTrailingSlashes(url);
+}
+
+/**
+ * Remove every `<…>` tag, matching `html.replace(/<[^>]*>/g, '')` exactly but in linear time:
+ * that regex rescans to the end of the input from every `<` that has no closing `>`.
+ * The result is plain text for display, never HTML — it is not a sanitizer.
+ */
+export function removeHtmlTags(html: string): string {
+  let out = '';
+  let from = 0;
+  for (;;) {
+    const open = html.indexOf('<', from);
+    if (open === -1) break;
+    const close = html.indexOf('>', open + 1);
+    // No `>` after this `<` means none after any later `<` either: the rest is text.
+    if (close === -1) break;
+    out += html.slice(from, open);
+    from = close + 1;
+  }
+  return out + html.slice(from);
 }

@@ -67,6 +67,16 @@ describe('reply building', () => {
     expect(forwardSubject('Hello')).toBe('Fwd: Hello');
     expect(forwardSubject('Fw: Hello')).toBe('Fw: Hello');
     expect(replySubject('')).toBe('Re: (no subject)');
+    expect(replySubject('aw [3] : Hallo')).toBe('aw [3] : Hallo');
+    expect(replySubject('Re [x]: Hello')).toBe('Re: Re [x]: Hello');
+    expect(replySubject('Reply to me')).toBe('Re: Reply to me');
+  });
+
+  it('checks the reply prefix in linear time', () => {
+    const subject = `re${' '.repeat(50_000)}x`;
+    const started = performance.now();
+    expect(replySubject(subject)).toBe(`Re: ${subject}`);
+    expect(performance.now() - started).toBeLessThan(100);
   });
 
   it('extends the References chain with the original message id', () => {
@@ -116,6 +126,26 @@ describe('recipient parsing', () => {
       { name: 'Cy D', address: 'cy@example.com' },
     ]);
     expect(parsed.invalid).toEqual(['not-an-email']);
+  });
+
+  it('splits Name <address> the way the old /^(.*?)\\s*<([^>]+)>$/ did', () => {
+    const old = /^(.*?)\s*<([^>]+)>$/;
+    for (const part of ['Ana <ana@example.com>', 'Ana   <ana@example.com>', '<ana@example.com>', 'A <b> <c@example.com>', '"A B"<c@example.com>']) {
+      const match = part.match(old)!;
+      expect(parseRecipients(part).valid).toEqual([
+        { name: match[1]!.replace(/^"|"$/g, '').trim() || null, address: match[2]!.trim() },
+      ]);
+    }
+    for (const part of ['A <<c@example.com>', 'A <>', 'A <x@example.com', 'x@example.com>']) {
+      expect(parseRecipients(part).invalid).toEqual([part]);
+    }
+  });
+
+  it('parses a pathological entry in linear time', () => {
+    const started = performance.now();
+    expect(parseRecipients(`${'<'.repeat(50_000)}${' '.repeat(50_000)}`).valid).toEqual([]);
+    expect(parseRecipients(`a${' '.repeat(50_000)}<x`).valid).toEqual([]);
+    expect(performance.now() - started).toBeLessThan(100);
   });
 });
 

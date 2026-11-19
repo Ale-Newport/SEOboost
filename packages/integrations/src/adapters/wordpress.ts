@@ -11,6 +11,7 @@ import {
   readRecord,
   readRendered,
   readString,
+  removeHtmlTags,
   toJsonObject,
   trimTrailingSlash,
   type HttpRequestOptions,
@@ -852,12 +853,15 @@ function appendZ(value: string | undefined): string | undefined {
   return /[Zz]|[+-]\d{2}:?\d{2}$/.test(value) ? value : `${value}Z`;
 }
 
-function stripTags(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, '')
+/**
+ * Rendered title/excerpt → plain text for snapshots and the UI (rendered as React text, never as
+ * HTML). `&amp;` is decoded last so `&amp;#8217;` stays the literal text `&#8217;`. Exported for tests.
+ */
+export function stripTags(html: string): string {
+  return removeHtmlTags(html)
     .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
     .replace(/&#8217;/g, '’')
+    .replace(/&amp;/g, '&')
     .trim();
 }
 
@@ -899,18 +903,39 @@ function replaceOrAppendBlock(body: string, block: string): string {
   return body.trimEnd() ? `${body.trimEnd()}\n\n${block}` : block;
 }
 
-/** Pull any JSON-LD already embedded in the body so snapshots capture it. */
-function extractJsonLd(html: string): JsonValue[] {
+/**
+ * Pull any JSON-LD already embedded in the body so snapshots capture it. Exported for tests.
+ *
+ * Same matches as `/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi`,
+ * found with indexOf instead: that regex rescans to the end of the body from every `<script` that
+ * has no `>` or no `</script>` after it, which is quadratic on a large post.
+ */
+export function extractJsonLd(html: string): JsonValue[] {
   const out: JsonValue[] = [];
-  const re = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
-  let match = re.exec(html);
+  const open = /<script/gi;
+  const close = /<\/script>/gi;
+  let match = open.exec(html);
   while (match) {
+    const tagEnd = html.indexOf('>', match.index + match[0].length);
+    if (tagEnd === -1) break;
+    // `[^>]+` before `type=` needs at least one character after `<script`.
+    const attributes = html.slice(match.index + match[0].length + 1, tagEnd);
+    if (!/type=["']application\/ld\+json["']/i.test(attributes)) {
+      // Any `<script` inside this tag shares its `>` and a suffix of its attributes: no match either.
+      open.lastIndex = tagEnd + 1;
+      match = open.exec(html);
+      continue;
+    }
+    close.lastIndex = tagEnd + 1;
+    const end = close.exec(html);
+    if (!end) break;
     try {
-      out.push(JSON.parse(match[1].trim()) as JsonValue);
+      out.push(JSON.parse(html.slice(tagEnd + 1, end.index).trim()) as JsonValue);
     } catch {
       // A malformed block on the page is data, not a crash — skip it.
     }
-    match = re.exec(html);
+    open.lastIndex = end.index + end[0].length;
+    match = open.exec(html);
   }
   return out;
 }

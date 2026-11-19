@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { insertInternalLinks } from '../apply';
+import { htmlProtectedRanges, insertInternalLinks } from '../apply';
 
 /**
  * The link inserter rewrites a customer's live page body, so the invariants below are the
@@ -155,6 +155,25 @@ describe('insertInternalLinks — HTML', () => {
     expect(result.body).toContain('title="A &amp; B"');
   });
 
+  it('protects a script body even when its closing tag carries junk', () => {
+    for (const close of ['</script>', '</SCRIPT >', '</script foo="bar">', '</script\t\n bar>']) {
+      const body = `<script>var label = "technical SEO";${close}<p>Nothing to link.</p>`;
+      const result = insertInternalLinks(body, [LINK]);
+      expect(result.inserted).toHaveLength(0);
+      expect(result.body).toBe(body);
+    }
+    const styled = '<style>.technical SEO {}</style data-x><p>x</p>';
+    expect(insertInternalLinks(styled, [LINK]).body).toBe(styled);
+  });
+
+  it('matches script closing tags in linear time', () => {
+    // Many `</script` candidates that are not closed until the very end.
+    const body = `<script>${'</script '.repeat(50_000 / 9)}>`;
+    const started = performance.now();
+    expect(htmlProtectedRanges(body)[0]).toEqual({ start: 0, end: body.length });
+    expect(performance.now() - started).toBeLessThan(100);
+  });
+
   it('does not double-link on a second pass over its own output', () => {
     const body = '<p>We do technical SEO and more technical SEO.</p>';
     const once = insertInternalLinks(body, [LINK]);
@@ -222,6 +241,15 @@ describe('insertInternalLinks — Markdown', () => {
     const body = 'Our technical SEO work.';
     const result = insertInternalLinks(body, [{ ...LINK, title: 'Guide' }], 'markdown');
     expect(result.body).toBe('Our [technical SEO](/guides/technical-seo "Guide") work.');
+  });
+
+  it('escapes backslashes as well as quotes and brackets in the title and destination', () => {
+    const body = 'Our technical SEO work.';
+    const titled = insertInternalLinks(body, [{ ...LINK, title: 'say "hi" \\' }], 'markdown');
+    expect(titled.body).toBe('Our [technical SEO](/guides/technical-seo "say \\"hi\\" \\\\") work.');
+
+    const spaced = insertInternalLinks(body, [{ anchor: 'technical SEO', href: '/a b\\<c>' }], 'markdown');
+    expect(spaced.body).toBe('Our [technical SEO](</a b\\\\\\<c\\>>) work.');
   });
 
   it('does not double-link on a second pass over its own output', () => {

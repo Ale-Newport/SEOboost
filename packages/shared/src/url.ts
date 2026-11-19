@@ -101,24 +101,18 @@ export function normalizeUrl(input: string, options: NormalizeOptions = {}): str
   return url.toString();
 }
 
+const NON_NAVIGABLE_SCHEMES = new Set(['mailto:', 'tel:', 'sms:', 'javascript:', 'vbscript:', 'data:']);
+
 /** Resolve a possibly relative href against a base URL. Returns null when unusable. */
 export function resolveUrl(base: string, href: string): string | null {
   if (!href) return null;
   const trimmed = href.trim();
-  if (!trimmed) return null;
-  const lower = trimmed.toLowerCase();
-  if (
-    lower.startsWith('mailto:') ||
-    lower.startsWith('tel:') ||
-    lower.startsWith('javascript:') ||
-    lower.startsWith('data:') ||
-    lower.startsWith('sms:') ||
-    lower.startsWith('#')
-  ) {
-    return null;
-  }
+  if (!trimmed || trimmed.startsWith('#')) return null;
   try {
-    return new URL(trimmed, base).toString();
+    const url = new URL(trimmed, base);
+    // Checked on the parsed scheme, not the raw string: the URL parser drops tabs/newlines, so
+    // `java\nscript:` would slip past a prefix check and still resolve to `javascript:`.
+    return NON_NAVIGABLE_SCHEMES.has(url.protocol) ? null : url.toString();
   } catch {
     return null;
   }
@@ -136,7 +130,14 @@ export function getHostname(input: string): string | null {
 
 /** Strip the leading `www.` and any scheme/path from a user-entered domain. */
 export function cleanDomain(input: string): string {
-  return (getHostname(input) ?? input.trim().toLowerCase()).replace(/\/+$/, '');
+  return trimTrailingSlashes(getHostname(input) ?? input.trim().toLowerCase());
+}
+
+/** Drop every trailing `/`. A loop rather than `/\/+$/`, which backtracks quadratically on long slash runs. */
+export function trimTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47 /* / */) end--;
+  return end === value.length ? value : value.slice(0, end);
 }
 
 export function isSameDomain(a: string, b: string): boolean {

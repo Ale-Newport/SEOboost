@@ -1021,8 +1021,9 @@ function collect(source: string, patterns: readonly RegExp[]): TextRange[] {
 const HTML_PROTECTED: readonly RegExp[] = [
   /<a\b[^>]*>[\s\S]*?<\/a\s*>/gi,
   /<h[1-6]\b[^>]*>[\s\S]*?<\/h[1-6]\s*>/gi,
-  /<script\b[^>]*>[\s\S]*?<\/script\s*>/gi,
-  /<style\b[^>]*>[\s\S]*?<\/style\s*>/gi,
+  // Browsers also close these on `</script foo>` (attributes or junk before the `>`), not just `</script >`.
+  /<script\b[^>]*>[\s\S]*?<\/script\b[^<>]*>/gi,
+  /<style\b[^>]*>[\s\S]*?<\/style\b[^<>]*>/gi,
   /<pre\b[^>]*>[\s\S]*?<\/pre\s*>/gi,
   /<code\b[^>]*>[\s\S]*?<\/code\s*>/gi,
   /<!--[\s\S]*?-->/g,
@@ -1095,10 +1096,11 @@ function renderHtmlLink(text: string, href: string, title?: string): string {
 }
 
 function renderMarkdownLink(text: string, href: string, title?: string): string {
-  const titlePart = title ? ` "${title.replace(/"/g, '\\"')}"` : '';
+  // Backslashes are escaped too: a title ending in `\` would otherwise escape its own closing quote.
+  const titlePart = title ? ` "${title.replace(/[\\"]/g, '\\$&')}"` : '';
   // A bare href containing a space or parenthesis terminates the destination early and
   // silently produces broken Markdown; the angle-bracket form is the escape hatch for it.
-  const destination = /[\s()<>]/.test(href) ? `<${href.replace(/([<>])/g, '\\$1')}>` : href;
+  const destination = /[\s()<>]/.test(href) ? `<${href.replace(/[\\<>]/g, '\\$&')}>` : href;
   return `[${text}](${destination}${titlePart})`;
 }
 
