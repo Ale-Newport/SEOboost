@@ -37,9 +37,9 @@ on specific days or in specific threads.
 > - It deliberately refuses spammy tactics: no fake reviews, doorway pages or unapproved
 >   posting in other people's communities.
 >
-> There's no hosted demo because it stores credentials for your accounts, but
-> `npm run db:seed -- --demo` loads a clearly labelled demo dataset so you can click around
-> locally. Feedback on the scoring models and the experiment design is very welcome.
+> There's no hosted demo because it stores credentials for your accounts, but `npm run demo`
+> builds it and serves it locally on a clearly labelled synthetic dataset, with a throwaway
+> login, in one command. Feedback on the scoring models and the experiment design is very welcome.
 
 ## Reddit
 
@@ -67,7 +67,8 @@ Post as a text post, link in the body, disclose that you built it. Suggested com
 > whether it actually helped.
 >
 > Stack: Next.js 15, BullMQ worker, Postgres, Redis, Docker Compose. Credentials are encrypted
-> at rest; AI providers are optional (bring your own key, or none).
+> at rest; AI providers are optional (bring your own key, or none). `npm run demo` spins up a
+> local instance on labelled synthetic data if you just want to click around.
 >
 > Repo: https://github.com/Ale-Newport/SEOboost — disclosure: I'm the author. Happy to answer
 > questions and very open to feedback.
@@ -85,6 +86,13 @@ Post as a text post, link in the body, disclose that you built it. Suggested com
 >
 > Weights live in `packages/seo-engine` — I'd love critique of the factors and weights from
 > people who do this professionally. Repo: https://github.com/Ale-Newport/SEOboost (I'm the author.)
+
+## Before posting
+
+- [ ] Upload `docs/assets/social-preview.png` in **Settings → General → Social preview** (GitHub has
+      no API for it). Check it renders by pasting the repo URL into a link-preview tool.
+- [ ] Run `npm run demo` once on a clean checkout so you can answer setup questions first-hand.
+- [ ] Make sure CI is green on `main` and the latest release notes are current.
 
 ## Other places
 

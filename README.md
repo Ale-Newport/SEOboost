@@ -18,7 +18,7 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15%2B-4169E1?logo=postgresql&logoColor=white)](docker-compose.yml)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-[Quick start](#quick-start) · [Screenshots](#screenshots) · [Features](#what-it-does) · [Architecture](#architecture) · [Docs](SETUP.md) · [Contributing](CONTRIBUTING.md)
+[Quick start](#quick-start) · [Demo](#try-the-demo-in-one-command) · [Screenshots](#screenshots) · [Features](#what-it-does) · [Architecture](#architecture) · [Docs](SETUP.md) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
@@ -91,16 +91,23 @@ cp .env.example .env   # then set AUTH_SECRET (openssl rand -base64 48) and ENCR
 docker compose up -d && docker compose exec web npm run db:migrate
 ```
 
-### Explore with demo data
+### Try the demo in one command
 
 There is no public hosted demo — SEO OS stores credentials for your accounts, so it is meant to run
-on infrastructure you control. To explore it without connecting anything, sign up locally and load
-the labelled demo dataset (three fictional `[DEMO]` sites with crawls, Search Console history,
+on infrastructure you control. Instead, one command gives you a production build on clearly
+labelled synthetic data (three fictional `[DEMO]` sites with crawls, Search Console history,
 keywords, actions and a measured experiment):
 
 ```bash
-npm run db:seed -- --demo        # remove it later with: npm run db:seed -- --clear-demo
+npm run demo        # → http://localhost:3100 and a printed demo login
 ```
+
+It needs Node and a local Postgres (`docker compose up -d postgres redis` or
+`./scripts/dev-services.sh`), uses its own `seo_os_demo` database and throwaway secrets in
+`.env.demo`, and never touches `.env` or your real data. `npm run demo -- --reset` starts over.
+
+To add the same dataset to your own install instead: `npm run db:seed -- --demo` (remove it later
+with `npm run db:seed -- --clear-demo`).
 
 ## What it does
 
@@ -208,7 +215,8 @@ npm run db:seed        # global defaults; add -- --demo for the labelled demo da
 
 npm run lint           # ESLint
 npm run typecheck      # strict TypeScript across the apps (typecheck:packages for the libraries)
-npm test               # 600+ unit and integration tests (Vitest)
+npm test               # 700+ unit and integration tests (Vitest)
+npm run demo           # production build on labelled demo data → :3100
 npm run test:e2e       # Playwright end-to-end flows
 npm run build          # production build
 npm run verify         # generate + typecheck + test + build

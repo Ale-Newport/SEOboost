@@ -6,6 +6,40 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-19
+
+### Security
+
+- **SSRF:** user-supplied fetches now check the address they actually connect to, closing DNS
+  rebinding between the check and the connection (#7).
+- **Brute force:** sign-in is rate-limited per IP and per account, and sign-up per IP, with
+  `Retry-After` on 429 responses (#8).
+- **Ownership:** concurrent first sign-ups can no longer both become OWNER (#3).
+- **CSRF:** a `null` or malformed `Origin` header is rejected with 401 instead of crashing with
+  500 (#2).
+- **GitHub HTML:** sanitized with an allowlist parser (`sanitize-html`) instead of regexes; entity-encoded
+  `javascript:` URLs are caught (#26).
+- **Dependencies:** zod 4.6.7 (memory-exhaustion advisory) and a patched `effect` for the Prisma
+  CLI. `npm audit` reports 0 vulnerabilities.
+
+### Added
+
+- `npm run demo`: a production build on labelled synthetic data with a throwaway login, in one
+  command (#10).
+- Unit tests for `apps/web` run in Vitest and CI (#9); e2e test for concurrent sign-ups.
+
+### Changed
+
+- Migrated from zod 3 to zod 4 (#6). Structured-output JSON Schemas are byte-identical; partial
+  updates keep omitted fields unchanged. Default validation messages use zod 4 wording.
+- Dependency updates: React 19.3.1, Radix UI, OpenAI SDK 7.57, Playwright 1.65, googleapis 190,
+  @google/genai 3.3, lucide-react 1.73 and 20 more minor/patch updates.
+
+### Fixed
+
+- `react` and `react-dom` versions diverged in the lockfile, breaking `next build`.
+- Remaining lint warnings (#4, #5); `npm run lint` is now warning-free.
+
 ## [1.0.0] - 2026-11-19
 
 First public release.
@@ -71,5 +105,6 @@ First public release.
 - End-to-end tests: ambiguous password selector and navigation races with client redirects.
 - MIT license, security policy, contributing guide, code of conduct, issue and PR templates.
 
-[Unreleased]: https://github.com/Ale-Newport/SEOboost/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/Ale-Newport/SEOboost/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/Ale-Newport/SEOboost/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Ale-Newport/SEOboost/releases/tag/v1.0.0

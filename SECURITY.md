@@ -45,7 +45,11 @@ that has deliberately turned a safeguard off (for example `ALLOW_PRIVATE_NETWORK
   route also checks a CSRF token. Every route that takes an id checks ownership.
 - **Server-side fetches of user-supplied URLs** (crawler, renderer, CMS/webhook adapters,
   Mastodon/Bluesky) are blocked from loopback, private, link-local and cloud-metadata
-  addresses on every redirect hop.
+  addresses on every redirect hop, and the check is enforced on the address actually connected
+  to, so DNS rebinding cannot slip past it.
+- **Sign-in and sign-up** are rate-limited per IP and per account (Redis-backed, with an
+  in-process fallback); the first account is created under a database lock so only one OWNER
+  can ever exist.
 - **Redirect targets** after login and OAuth are restricted to same-origin paths.
 - **Containers** run as the unprivileged `node` user; Postgres and Redis are published on
   `127.0.0.1` only.
@@ -63,6 +67,5 @@ that has deliberately turned a safeguard off (for example `ALLOW_PRIVATE_NETWORK
 
 ## Known advisories
 
-| Package | Advisory | Status |
-|---------|----------|--------|
-| `zod` 3.25.76 | Memory exhaustion when validating oversized constrained collections (fixed in 4.6.6) | Request bodies are size-limited by the API layer. The fix requires the zod 4 migration, tracked in [#6](https://github.com/Ale-Newport/SEOboost/issues/6). |
+None. `npm audit` reports 0 vulnerabilities as of v1.1.0; Dependabot alerts and the weekly
+Security workflow keep watching.
