@@ -32,7 +32,8 @@
     "verify": "npm run db:generate && npm run typecheck && npm run typecheck:packages && npm run test && npm run build",
     "setup": "bash scripts/setup.sh",
     "smoke:crawl": "tsx scripts/smoke-crawl.mts",
-    "typecheck:packages": "tsc -p tsconfig.check.json"
+    "typecheck:packages": "tsc -p tsconfig.check.json",
+    "demo": "bash scripts/demo.sh"
   },
   "devDependencies": {
     "@playwright/test": "1.65.1",
