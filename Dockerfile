@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ── Base: dependencies shared by both runtime images ────────────────────────
-FROM node:22-slim AS deps
+FROM node:26-slim AS deps
 WORKDIR /app
 # openssl is required by Prisma's query engine on slim images.
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
@@ -33,7 +33,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build --workspace @seo/web
 
 # ── Web runtime ────────────────────────────────────────────────────────────
-FROM node:22-slim AS web
+FROM node:26-slim AS web
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
@@ -48,7 +48,7 @@ CMD ["npm", "run", "start", "--workspace", "@seo/web"]
 # ── Worker runtime ─────────────────────────────────────────────────────────
 # Includes Chromium so optional JS rendering works. Set ENABLE_JS_RENDERING=true
 # to use it; HTTP crawling (the default) does not need the browser.
-FROM node:22-slim AS worker
+FROM node:26-slim AS worker
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
