@@ -43,6 +43,10 @@ First public release.
   open redirects).
 - Admin role required to change installation-wide OAuth app credentials.
 - 5 MB cap on JSON request bodies.
+- Fixed CodeQL findings: polynomial-time regexes on remote and LLM-produced input replaced with
+  linear scanners; the GitHub HTML sanitizer repeats until stable and escapes crafted markup;
+  `resolveUrl` rejects `vbscript:` and newline-split `javascript:` URLs; Markdown links escape
+  backslashes.
 - Containers run as the unprivileged `node` user; Postgres and Redis are bound to `127.0.0.1`
   in `docker-compose.yml`.
 - `Content-Security-Policy: frame-ancestors 'none'`, HSTS in production, no `X-Powered-By`.
@@ -57,6 +61,14 @@ First public release.
   actions and read-only default permissions.
 - Dependabot for npm, GitHub Actions and Docker.
 - ESLint flat config (`next lint` replacement); lint now runs and passes.
+
+### Fixed
+
+- Invalid nested `<button>` in sortable table headers with info tooltips, which caused a React
+  hydration error on the Keywords page.
+- Section headers without actions overlapped their description (GEO readiness page).
+- Truncated column headers in the keyword table.
+- End-to-end tests: ambiguous password selector and navigation races with client redirects.
 - MIT license, security policy, contributing guide, code of conduct, issue and PR templates.
 
 [Unreleased]: https://github.com/Ale-Newport/SEOboost/compare/v1.0.0...HEAD
