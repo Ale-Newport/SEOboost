@@ -131,11 +131,13 @@ describe('sanitizeGitHubHtml', () => {
 
   it('strips handlers after a slash and unquoted script URLs', () => {
     expect(sanitizeGitHubHtml('<img/onerror=alert(1) src="a.png">')).not.toMatch(/onerror/i);
-    expect(sanitizeGitHubHtml('<a href=javascript:alert(1)>x</a>')).toBe('<a href="#">x</a>');
+    const link = sanitizeGitHubHtml('<a href=javascript:alert(1)>x</a>');
+    expect(link).not.toMatch(/javascript|href/i);
+    expect(link).toContain('>x</a>');
   });
 
   it('leaves ordinary GitHub HTML untouched', () => {
-    const html = '<h2><a href="#install">Install</a></h2><pre><code>npm i x</code></pre><img src="https://x/a.png" alt="logo">';
+    const html = '<h2><a href="#install">Install</a></h2><pre><code>npm i x</code></pre><img src="https://x/a.png" alt="logo" />';
     expect(sanitizeGitHubHtml(html)).toBe(html);
   });
 
@@ -146,7 +148,48 @@ describe('sanitizeGitHubHtml', () => {
     const clean = sanitizeGitHubHtml(nested);
     expect(performance.now() - started).toBeLessThan(100);
     expect(clean).not.toContain('<');
-    expect(sanitizeGitHubHtml(`<p${' onx=1'.repeat(8_000)}>`)).toBe('<p>');
+    expect(sanitizeGitHubHtml(`<p${' onx=1'.repeat(8_000)}>`)).toBe('<p></p>');
+  });
+
+  it('decodes entities before checking URL schemes', () => {
+    for (const html of [
+      '<a href="&#106;avascript:alert(1)">x</a>',
+      '<a href="&#x6A;avascript:alert(1)">x</a>',
+      '<a href="java&#x09;script:alert(1)">x</a>',
+      '<img src="&#106;avascript:alert(1)">',
+      '<a href="data:text/html,<script>alert(1)</script>">x</a>',
+      '<img src="//evil.example/track.gif">',
+    ]) {
+      const clean = sanitizeGitHubHtml(html);
+      expect(clean).not.toMatch(/javascript|data:|evil\.example|<script/i);
+    }
+  });
+
+  it('opens external links safely and leaves in-page anchors alone', () => {
+    expect(sanitizeGitHubHtml('<a href="https://example.com">x</a>')).toBe(
+      '<a href="https://example.com" target="_blank" rel="noopener noreferrer nofollow">x</a>',
+    );
+    expect(sanitizeGitHubHtml('<a href="#usage">x</a>')).toBe('<a href="#usage">x</a>');
+  });
+
+  it('keeps read-only task-list checkboxes and drops every other input', () => {
+    expect(sanitizeGitHubHtml('<input type="checkbox" checked onclick="x()">')).toBe(
+      '<input type="checkbox" disabled checked />',
+    );
+    expect(sanitizeGitHubHtml('<input type="checkbox">')).toBe('<input type="checkbox" disabled />');
+    expect(sanitizeGitHubHtml('<input type="text" value="phish">')).not.toContain('<input');
+    expect(sanitizeGitHubHtml('<form action="https://evil.example"><input type="password"></form>')).not.toMatch(/form|input|evil/);
+  });
+
+  it('namespaces ids and keeps only GitHub classes', () => {
+    expect(sanitizeGitHubHtml('<h2 id="install">Install</h2>')).toBe('<h2 id="user-content-install">Install</h2>');
+    expect(sanitizeGitHubHtml('<h2 id="user-content-install">Install</h2>')).toBe('<h2 id="user-content-install">Install</h2>');
+    expect(sanitizeGitHubHtml('<li class="task-list-item fixed inset-0 z-50">x</li>')).toBe('<li class="task-list-item">x</li>');
+  });
+
+  it('drops dangerous elements together with their contents', () => {
+    const clean = sanitizeGitHubHtml('<p>a</p><style>body{display:none}</style><svg><script>alert(1)</script></svg><iframe src="https://x"></iframe><p>b</p>');
+    expect(clean).toBe('<p>a</p><p>b</p>');
   });
 });
 

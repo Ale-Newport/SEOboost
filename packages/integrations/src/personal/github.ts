@@ -1,3 +1,4 @@
+import sanitizeHtml from 'sanitize-html';
 import { truncate } from '@seo/shared';
 import { httpRequest, providerMessage, type HttpResult } from '../adapters/http';
 import { readArray, readDate, readNumber, readOptionalNumber, readRecord, readString } from '../serp/http';
@@ -237,41 +238,89 @@ export async function markNotificationRead(token: string, threadId: string): Pro
   await githubApi(token, `/notifications/threads/${threadId}`, { method: 'PATCH', okStatuses: [205, 304] });
 }
 
-const DANGEROUS_TAGS = 'script|style|iframe|object|embed|form|input|button|textarea|select|meta|link|base|frame|frameset|svg|math';
-const DANGEROUS_PAIRED = new RegExp(`<(${DANGEROUS_TAGS})\\b[^>]*>[\\s\\S]*?<\\/\\1\\s*>`, 'gi');
-const DANGEROUS_TAG = new RegExp(`<\\/?(${DANGEROUS_TAGS})\\b[^>]*>`, 'gi');
-/** Max passes before giving up on the markup; real GitHub HTML is stable after one. */
-const MAX_SANITIZE_PASSES = 5;
+/** Tags GitHub's Markdown renderer emits. Anything else (script, iframe, form, svg, style…) is dropped. */
+const GITHUB_ALLOWED_TAGS = [
+  'a', 'abbr', 'b', 'blockquote', 'br', 'caption', 'code', 'col', 'colgroup', 'dd', 'del', 'details',
+  'div', 'dl', 'dt', 'em', 'figcaption', 'figure', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'i', 'img',
+  'input', 'ins', 'kbd', 'li', 'mark', 'ol', 'p', 'picture', 'pre', 'q', 's', 'samp', 'small', 'source',
+  'span', 'strike', 'strong', 'sub', 'summary', 'sup', 'table', 'tbody', 'td', 'tfoot', 'th', 'thead',
+  'tr', 'tt', 'u', 'ul', 'var',
+];
+
+const GITHUB_ALLOWED_ATTRIBUTES: sanitizeHtml.IOptions['allowedAttributes'] = {
+  a: ['href', 'title', 'target', 'rel'],
+  abbr: ['title'],
+  col: ['span', 'width'],
+  colgroup: ['span', 'width'],
+  details: ['open'],
+  img: ['src', 'alt', 'title', 'width', 'height', 'align'],
+  input: ['type', 'checked', 'disabled'],
+  ol: ['start', 'type'],
+  source: ['srcset', 'media', 'type'],
+  td: ['colspan', 'rowspan', 'align', 'valign'],
+  th: ['colspan', 'rowspan', 'align', 'valign'],
+  // `id` keeps heading anchors working and is forced into GitHub's `user-content-` namespace below.
+  '*': ['id', 'align', 'dir', 'lang'],
+};
 
 /**
- * Strip anything executable from GitHub-rendered HTML before it is shown.
+ * Only GitHub's own styling hooks (task lists, alerts, syntax highlighting, heading anchors).
+ * Arbitrary classes are dropped so crafted markup cannot borrow the app's utility classes to
+ * overlay or restyle the surrounding UI.
+ */
+const GITHUB_ALLOWED_CLASSES: sanitizeHtml.IOptions['allowedClasses'] = {
+  '*': [
+    'markdown-*', 'task-list-item', 'task-list-item-checkbox', 'contains-task-list', 'highlight',
+    'highlight-*', 'pl-*', 'anchor', 'octicon', 'octicon-*', 'heading-element', 'notranslate',
+    'snippet-clipboard-content',
+  ],
+};
+
+/** GitHub prefixes every user-authored id with this, so anchors cannot clobber the app's own DOM ids. */
+const GITHUB_ID_PREFIX = 'user-content-';
+
+/**
+ * Strip anything executable from GitHub-rendered HTML before it is shown with
+ * `dangerouslySetInnerHTML`.
  *
- * GitHub already sanitises what it renders; this is a second line so a README can never run
- * script in the operator's session even if that ever changes. Exported for tests.
- *
- * Runs until nothing changes, because one pass can assemble what it removes: `<scr<script>ipt>`
- * becomes `<script>`. Markup still changing after a few passes is crafted, so it is escaped whole.
+ * GitHub already sanitises what it renders; this is a second line so a README or issue can never
+ * run script in the operator's session even if that ever changes. It is an allowlist parser
+ * (`sanitize-html`), not a regex denylist: entities are decoded before URL schemes are checked
+ * (`&#106;avascript:` is caught), only http/https/mailto URLs survive, and the output is stable
+ * by construction. Exported for tests.
  */
 export function sanitizeGitHubHtml(html: string): string {
-  let current = html;
-  for (let pass = 0; pass < MAX_SANITIZE_PASSES; pass++) {
-    const next = sanitizeGitHubHtmlPass(current);
-    if (next === current) return next;
-    current = next;
-  }
-  return current.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return sanitizeHtml(html, {
+    allowedTags: GITHUB_ALLOWED_TAGS,
+    allowedAttributes: GITHUB_ALLOWED_ATTRIBUTES,
+    allowedClasses: GITHUB_ALLOWED_CLASSES,
+    allowedSchemes: ['http', 'https', 'mailto'],
+    allowedSchemesByTag: { img: ['http', 'https'], source: ['http', 'https'] },
+    allowedSchemesAppliedToAttributes: ['href', 'src', 'srcset', 'cite'],
+    allowProtocolRelative: false,
+    disallowedTagsMode: 'discard',
+    nonTextTags: ['script', 'style', 'textarea', 'option', 'noscript', 'title', 'iframe', 'object', 'embed', 'svg', 'math'],
+    // One transform for every tag (sanitize-html applies either a tag-specific or the `*` one).
+    transformTags: { '*': transformGitHubTag },
+  });
 }
 
-function sanitizeGitHubHtmlPass(html: string): string {
-  return html
-    // Paired elements go with everything inside them; any stray or self-closing tag goes too.
-    .replace(DANGEROUS_PAIRED, '')
-    .replace(DANGEROUS_TAG, '')
-    // `[\s/]`: browsers also split attributes on `/`, as in `<img/onerror=…>`.
-    .replace(/[\s/]on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-    .replace(/\s(href|src|xlink:href|action|formaction)\s*=\s*("|')\s*(javascript|vbscript|data:text\/html)[^"']*\2/gi, ' $1="#"')
-    .replace(/\s(href|src|xlink:href|action|formaction)\s*=\s*(javascript|vbscript|data:text\/html)[^\s>]*/gi, ' $1="#"')
-    .replace(/\sstyle\s*=\s*("[^"]*"|'[^']*')/gi, '');
+function transformGitHubTag(tagName: string, attribs: sanitizeHtml.Attributes): sanitizeHtml.Tag {
+  const next: sanitizeHtml.Attributes = { ...attribs };
+  if (next.id !== undefined && !next.id.startsWith(GITHUB_ID_PREFIX)) next.id = GITHUB_ID_PREFIX + next.id;
+
+  // Links leave the app in a new tab, without the opener or a referrer; in-page anchors stay put.
+  if (tagName === 'a' && next.href !== undefined && !next.href.startsWith('#')) {
+    next.target = '_blank';
+    next.rel = 'noopener noreferrer nofollow';
+  }
+
+  // Only GitHub's read-only task-list checkboxes survive; any other input becomes an empty span.
+  if (tagName === 'input') {
+    if (next.type !== 'checkbox') return { tagName: 'span', attribs: {} };
+    return { tagName, attribs: { type: 'checkbox', disabled: '', ...(next.checked !== undefined ? { checked: '' } : {}) } };
+  }
+  return { tagName, attribs: next };
 }
 
 export interface GitHubRepoDetail extends GitHubRepoSummary {
