@@ -86,6 +86,11 @@ const Avatar = React.forwardRef<HTMLSpanElement, AvatarProps>(function Avatar(
     >
       <span aria-hidden="true">{initials(name)}</span>
       {showImage ? (
+        // A plain <img> on purpose: avatars come from arbitrary third-party hosts (GitHub,
+        // Reddit, Gravatar, mail senders). next/image would need every host allow-listed and would
+        // proxy them through the server-side optimizer, which fetches user-influenced URLs; here the
+        // browser loads them directly with no referrer, and onError falls back to initials.
+        // eslint-disable-next-line @next/next/no-img-element
         <img
           src={src}
           alt={alt ?? name}

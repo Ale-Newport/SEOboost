@@ -104,7 +104,8 @@ export function SiteArchitectureView({
     };
   }, [websiteId, maxNodes, indexableOnly, reloadToken]);
 
-  const nodes = data?.nodes ?? [];
+  // Memoised so the derived graph, lookup map and histogram below only recompute when data changes.
+  const nodes = useMemo(() => data?.nodes ?? [], [data]);
   const stats = data?.stats ?? null;
   const rendered = data?.rendered ?? null;
 

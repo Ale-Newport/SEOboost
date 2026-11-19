@@ -14,6 +14,9 @@ const PACKAGES = ['shared', 'db', 'ai', 'crawler', 'seo-engine', 'integrations',
  * aliases in order.
  */
 const alias = [
+  // apps/web: its `@/` path alias, and an inert stand-in for the RSC-only `server-only` guard.
+  { find: /^@\/(.*)$/, replacement: path.join(root, 'apps', 'web', 'src', '$1') },
+  { find: 'server-only', replacement: path.join(root, 'tests', 'stubs', 'server-only.ts') },
   ...PACKAGES.map((name) => ({
     find: new RegExp(`^@seo/${name}/(.*)$`),
     replacement: path.join(root, 'packages', name, 'src', '$1'),
@@ -28,7 +31,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['packages/**/__tests__/**/*.test.ts', 'tests/**/*.test.ts'],
+    include: ['packages/**/__tests__/**/*.test.ts', 'apps/web/src/**/__tests__/**/*.test.ts', 'tests/**/*.test.ts'],
     exclude: ['**/node_modules/**', '**/.next/**', 'tests/e2e/**'],
     testTimeout: 20_000,
     coverage: {
