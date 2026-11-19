@@ -6,6 +6,7 @@ import {
   AppError,
   ForbiddenError,
   NotFoundError,
+  RateLimitError,
   ValidationError,
   createLogger,
   errorMessage,
@@ -82,7 +83,9 @@ export function handleRouteError(err: unknown, label: string, durationMs?: numbe
       ? { error: 'Something went wrong on our side. Check the server logs for details.', code: appError.code }
       : appError.toJSON();
 
-  return NextResponse.json(body, { status: appError.status });
+  const headers: Record<string, string> = {};
+  if (appError instanceof RateLimitError) headers['Retry-After'] = String(Math.max(1, appError.retryAfterSeconds));
+  return NextResponse.json(body, { status: appError.status, headers });
 }
 
 /** Parse and validate a JSON request body. */

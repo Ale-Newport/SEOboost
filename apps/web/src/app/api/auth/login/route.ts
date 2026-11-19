@@ -1,6 +1,7 @@
 import { loginSchema } from '@seo/shared';
 import { readBody, route } from '@/lib/api';
 import { login } from '@/lib/auth';
+import { clearLoginRateLimit, enforceLoginRateLimit } from '@/lib/rate-limit';
 
 /**
  * Sign in.
@@ -12,7 +13,9 @@ import { login } from '@/lib/auth';
 export const POST = route(
   async ({ request }) => {
     const input = await readBody(request, loginSchema);
+    await enforceLoginRateLimit(request, input.email);
     const user = await login(input);
+    await clearLoginRateLimit(input.email);
     return { user };
   },
   { public: true },

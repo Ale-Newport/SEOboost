@@ -15,3 +15,4 @@ export * from './queue';
 export * from './worker-runtime';
 export * from './scheduler';
 export * from './status';
+export * from './rate-limit';

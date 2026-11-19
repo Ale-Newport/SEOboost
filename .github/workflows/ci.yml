@@ -99,6 +99,8 @@ jobs:
       AUTH_SECRET: ci-e2e-secret-not-used-anywhere-else-000000000000
       ENCRYPTION_KEY: Y2ktZTJlLXBsYWNlaG9sZGVyLWtleS0zMi1ieXRlcyE=
       ALLOW_SIGNUP: 'true'
+      # The suite signs up many accounts from one IP; keep the production default out of its way.
+      SIGNUP_RATE_LIMIT_PER_IP: '1000'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

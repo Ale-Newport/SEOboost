@@ -165,37 +165,67 @@ export async function assertCsrf(request: Request): Promise<void> {
 
   if (!cookieToken || !headerToken || !constantTimeEquals(cookieToken, headerToken)) {
     // Fall back to an origin check so first-party form posts without JS still work.
-    const origin = request.headers.get('origin');
-    if (origin && new URL(origin).origin === new URL(env.appUrl).origin) return;
+    if (isSameOrigin(request.headers.get('origin'), env.appUrl)) return;
     throw new UnauthorizedError('Invalid CSRF token. Refresh the page and try again.');
+  }
+}
+
+/**
+ * True when an `Origin` header names exactly the app's origin. Browsers send the literal string
+ * `null` for opaque origins (sandboxed iframes, some redirects, privacy modes) and any client can
+ * send garbage, so an unparsable value is a mismatch rather than an exception.
+ */
+export function isSameOrigin(origin: string | null, appUrl: string): boolean {
+  if (!origin || origin === 'null') return false;
+  try {
+    return new URL(origin).origin === new URL(appUrl).origin;
+  } catch {
+    return false;
   }
 }
 
 export const CSRF_COOKIE_NAME = CSRF_COOKIE;
 export const SESSION_COOKIE_NAME = SESSION_COOKIE;
 
+/**
+ * Arbitrary, fixed key for the advisory lock that serialises account creation. Only signups take
+ * it, so it never contends with anything else.
+ */
+const SIGNUP_LOCK_KEY = 7_340_101;
+
 export async function signup(input: { email: string; password: string; name?: string }): Promise<SessionUser> {
-  const userCount = await prisma.user.count();
-  if (userCount > 0 && !env.allowSignup) {
-    throw new ConflictError('Signup is disabled on this installation. Ask the owner to create your account.');
-  }
+  // Hash outside the transaction: bcrypt is deliberately slow and must not hold the lock.
+  const passwordHash = await hashPassword(input.password);
 
-  const existing = await prisma.user.findUnique({ where: { email: input.email } });
-  if (existing) throw new ConflictError('An account with that email already exists.');
+  // Count-then-insert must be atomic or two simultaneous first signups both see zero users and
+  // both become OWNER. A transaction-scoped advisory lock serialises account creation; it is
+  // released automatically on commit or rollback.
+  const { user, isFirstUser } = await prisma.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(`SELECT pg_advisory_xact_lock(${SIGNUP_LOCK_KEY})`);
 
-  const user = await prisma.user.create({
-    data: {
-      email: input.email,
-      name: input.name ?? null,
-      passwordHash: await hashPassword(input.password),
-      // The first account owns the installation.
-      role: userCount === 0 ? 'OWNER' : 'EDITOR',
-    },
-    select: { id: true, email: true, name: true, role: true },
+    const userCount = await tx.user.count();
+    if (userCount > 0 && !env.allowSignup) {
+      throw new ConflictError('Signup is disabled on this installation. Ask the owner to create your account.');
+    }
+
+    const existing = await tx.user.findUnique({ where: { email: input.email } });
+    if (existing) throw new ConflictError('An account with that email already exists.');
+
+    const created = await tx.user.create({
+      data: {
+        email: input.email,
+        name: input.name ?? null,
+        passwordHash,
+        // The first account owns the installation.
+        role: userCount === 0 ? 'OWNER' : 'EDITOR',
+      },
+      select: { id: true, email: true, name: true, role: true },
+    });
+    return { user: created, isFirstUser: userCount === 0 };
   });
 
   await createSession(user.id);
-  log.info('account created', { userId: user.id, isFirstUser: userCount === 0 });
+  log.info('account created', { userId: user.id, isFirstUser });
   return user;
 }
 

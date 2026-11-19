@@ -1,6 +1,7 @@
 import { signupSchema } from '@seo/shared';
 import { readBody, route } from '@/lib/api';
 import { signup } from '@/lib/auth';
+import { enforceSignupRateLimit } from '@/lib/rate-limit';
 
 /**
  * Create an account.
@@ -12,6 +13,7 @@ import { signup } from '@/lib/auth';
 export const POST = route(
   async ({ request }) => {
     const input = await readBody(request, signupSchema);
+    await enforceSignupRateLimit(request);
     const user = await signup(input);
     return { user };
   },

@@ -71,6 +71,21 @@ export const env = {
   get allowSignup(): boolean {
     return bool('ALLOW_SIGNUP', true);
   },
+  /** Sign-in attempts allowed per client IP per window. */
+  get authRateLimitPerIp(): number {
+    return num('AUTH_RATE_LIMIT_PER_IP', 30);
+  },
+  /** Sign-in attempts allowed per account (email) per window, from any IP. */
+  get authRateLimitPerAccount(): number {
+    return num('AUTH_RATE_LIMIT_PER_ACCOUNT', 10);
+  },
+  /** Sign-up attempts allowed per client IP per window. */
+  get signupRateLimitPerIp(): number {
+    return num('SIGNUP_RATE_LIMIT_PER_IP', 5);
+  },
+  get authRateLimitWindowSeconds(): number {
+    return num('AUTH_RATE_LIMIT_WINDOW_SECONDS', 900);
+  },
 
   // ── AI providers ──────────────────────────────────────────
   get openaiApiKey(): string | undefined {
