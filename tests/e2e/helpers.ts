@@ -10,8 +10,25 @@ export function testAccount() {
   };
 }
 
+/**
+ * `page.goto` that tolerates a client-side redirect still in flight from the previous page
+ * (e.g. a new account on `/` being sent to `/onboarding`), which otherwise aborts the
+ * navigation with "interrupted by another navigation" on a slow dev server.
+ */
+export async function gotoStable(page: Page, url: string) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await page.goto(url);
+      return;
+    } catch (err) {
+      if (attempt >= 3 || !/interrupted by another navigation/i.test(String(err))) throw err;
+      await page.waitForLoadState('load');
+    }
+  }
+}
+
 export async function signUp(page: Page, account: ReturnType<typeof testAccount>) {
-  await page.goto('/signup');
+  await gotoStable(page, '/signup');
   await page.getByLabel(/email/i).fill(account.email);
   await page.getByLabel(/password/i).first().fill(account.password);
   const nameField = page.getByLabel(/name/i);
@@ -21,7 +38,7 @@ export async function signUp(page: Page, account: ReturnType<typeof testAccount>
 }
 
 export async function signIn(page: Page, account: { email: string; password: string }) {
-  await page.goto('/login');
+  await gotoStable(page, '/login');
   await page.getByLabel(/email/i).fill(account.email);
   await page.getByRole('textbox', { name: 'Password', exact: true }).fill(account.password);
   await page.getByRole('button', { name: /sign in|log in/i }).click();

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { signIn, signUp, testAccount } from './helpers';
+import { gotoStable, signIn, signUp, testAccount } from './helpers';
 
 test.describe('authentication', () => {
   test('rejects an unknown account without revealing which field was wrong', async ({ page }) => {
@@ -26,7 +26,8 @@ test.describe('authentication', () => {
     await expect(page).not.toHaveURL(/\/(login|signup)/);
 
     // Sign out, then back in with the same credentials.
-    await page.goto('/');
+    await gotoStable(page, '/');
+    await page.waitForLoadState('load');
     const menu = page.getByRole('button', { name: /account menu/i });
     if (await menu.count()) {
       await menu.click();
