@@ -13,9 +13,9 @@
     "@seo/db": "*",
     "@seo/shared": "*",
     "googleapis": "178.1.1",
-    "imapflow": "2.11.0",
-    "mailparser": "3.14.3",
-    "nodemailer": "10.5.0",
+    "imapflow": "2.12.1",
+    "mailparser": "3.14.5",
+    "nodemailer": "10.6.0",
     "sanitize-html": "2.18.2",
     "zod": "3.25.76"
   },

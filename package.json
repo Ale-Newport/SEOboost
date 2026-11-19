@@ -35,11 +35,11 @@
     "typecheck:packages": "tsc -p tsconfig.check.json"
   },
   "devDependencies": {
-    "@playwright/test": "1.63.0",
+    "@playwright/test": "1.65.1",
     "@types/node": "22.10.5",
     "concurrently": "9.1.2",
     "prisma": "6.19.3",
-    "tsx": "4.23.13",
+    "tsx": "4.23.15",
     "typescript": "5.9.3",
     "vitest": "4.1.12"
   },
