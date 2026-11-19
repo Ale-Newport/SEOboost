@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createFetcher } from '../fetcher';
 
+// These tests stub the network through global fetch; send the connection-time SSRF guard's
+// fetch there too (the guard itself is covered in packages/shared/src/__tests__/ssrf-rebinding.test.ts).
+vi.mock('@seo/shared/ssrf', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@seo/shared/ssrf')>()),
+  guardedFetch: (input: string | URL, init?: RequestInit) => globalThis.fetch(input, init),
+}));
+
 /**
  * The crawler fetches whatever URL a user typed as their site — and wherever that site
  * redirects — from inside the deployment, so the SSRF guard must hold on every hop.

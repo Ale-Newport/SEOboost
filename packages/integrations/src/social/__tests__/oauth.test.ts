@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+// These tests stub the network through global fetch; send the connection-time SSRF guard's
+// fetch there too (the guard itself is covered in packages/shared/src/__tests__/ssrf-rebinding.test.ts).
+vi.mock('@seo/shared/ssrf', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@seo/shared/ssrf')>()),
+  guardedFetch: (input: string | URL, init?: RequestInit) => globalThis.fetch(input, init),
+}));
+
 /**
  * The AppSetting store is replaced by an in-memory map so the OAuth helpers can be exercised
  * end to end — attempts, developer apps, the Mastodon registration cache — without Postgres.

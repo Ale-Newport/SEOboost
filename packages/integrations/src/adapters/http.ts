@@ -1,5 +1,5 @@
 import { createLogger, errorMessage, trimTrailingSlashes } from '@seo/shared';
-import { assertPublicUrl } from '@seo/shared/ssrf';
+import { assertPublicUrl, guardedFetch } from '@seo/shared/ssrf';
 import type { AdapterErrorCode, AdapterResult, JsonObject, JsonValue } from './types';
 import { adapterFail } from './types';
 
@@ -134,7 +134,8 @@ async function fetchGuarded(target: string, init: GuardedInit): Promise<Response
   let headers = { ...init.headers };
   for (let hop = 0; ; hop++) {
     await assertPublicUrl(url);
-    const response = await fetch(url, { method, headers, body, signal: init.signal, redirect: 'manual' });
+    // guardedFetch re-checks the address at connect time, closing the DNS-rebinding gap.
+    const response = await guardedFetch(url, { method, headers, body, signal: init.signal, redirect: 'manual' });
     const location = REDIRECT_STATUSES.has(response.status) ? response.headers.get('location') : null;
     if (!location) return response;
     if (hop >= MAX_REDIRECTS) throw new Error(`Exceeded ${MAX_REDIRECTS} redirects`);

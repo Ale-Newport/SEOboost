@@ -8,7 +8,7 @@
  */
 
 import { RateLimiter, createLogger, env, errorMessage, retry } from '@seo/shared';
-import { BlockedUrlError, assertPublicUrl } from '@seo/shared/ssrf';
+import { BlockedUrlError, assertPublicUrl, guardedFetch } from '@seo/shared/ssrf';
 import type { FetchResult } from './types';
 
 const log = createLogger('crawler:fetch');
@@ -443,19 +443,24 @@ export class Fetcher {
       // Declared outside the try so the catch/finally can inspect and dispose it.
       const deadline = startDeadline(this.timeoutMs, options.signal);
       try {
-        const response = await fetch(url, {
-          method,
-          redirect: 'manual',
-          signal: deadline.signal,
-          headers: {
-            'user-agent': this.userAgent,
-            accept: options.acceptText
-              ? 'text/html,application/xhtml+xml,application/xml;q=0.9,text/plain;q=0.8,*/*;q=0.5'
-              : 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'accept-language': this.acceptLanguage,
-            'accept-encoding': 'gzip, deflate, br',
+        // guardedFetch re-checks the address at connect time, closing the DNS-rebinding gap.
+        const response = await guardedFetch(
+          url,
+          {
+            method,
+            redirect: 'manual',
+            signal: deadline.signal,
+            headers: {
+              'user-agent': this.userAgent,
+              accept: options.acceptText
+                ? 'text/html,application/xhtml+xml,application/xml;q=0.9,text/plain;q=0.8,*/*;q=0.5'
+                : 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+              'accept-language': this.acceptLanguage,
+              'accept-encoding': 'gzip, deflate, br',
+            },
           },
-        });
+          { allowPrivateNetwork: this.allowPrivateNetwork },
+        );
 
         const headers = headersToObject(response.headers);
         const contentType = headers['content-type'] ?? null;

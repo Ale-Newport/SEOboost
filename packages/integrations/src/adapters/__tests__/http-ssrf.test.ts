@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HttpTransportError, httpRequest } from '../http';
 
+// These tests stub the network through global fetch; send the connection-time SSRF guard's
+// fetch there too (the guard itself is covered in packages/shared/src/__tests__/ssrf-rebinding.test.ts).
+vi.mock('@seo/shared/ssrf', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@seo/shared/ssrf')>()),
+  guardedFetch: (input: string | URL, init?: RequestInit) => globalThis.fetch(input, init),
+}));
+
 /**
  * Webhook, WordPress and self-hosted API URLs are typed by users and called from the server,
  * so `userSuppliedUrl` requests must refuse private targets on the first hop and on redirects.

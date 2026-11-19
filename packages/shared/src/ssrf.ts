@@ -1,5 +1,7 @@
 import { lookup as dnsLookup } from 'node:dns/promises';
-import { isIP } from 'node:net';
+import type { LookupAddress } from 'node:dns';
+import { isIP, type LookupFunction } from 'node:net';
+import { Agent, fetch as undiciFetch, type RequestInit as UndiciRequestInit } from 'undici';
 import { env } from './env';
 
 /**
@@ -15,8 +17,10 @@ import { env } from './env';
  * `ALLOW_PRIVATE_NETWORK_FETCH=true` turns it off for installs that legitimately crawl a LAN
  * or localhost site.
  *
- * Residual risk, accepted: the address is resolved here and again by `fetch`, so a hostile DNS
- * server that answers differently within the same second (DNS rebinding) can still slip through.
+ * DNS rebinding: `assertPublicUrl` resolves the host, and a plain `fetch` would resolve it
+ * again, so a hostile DNS server could answer "public" to the check and "private" to the
+ * connection. `guardedFetch` closes that gap by checking the addresses inside the socket's own
+ * `lookup`, i.e. the addresses actually connected to.
  */
 
 export class BlockedUrlError extends Error {
@@ -186,5 +190,106 @@ export async function assertPublicUrl(input: string | URL, options: PublicUrlOpt
   if (!options.lookup && addresses.length > 0) {
     if (verifiedHosts.size >= VERIFIED_MAX) verifiedHosts.clear();
     verifiedHosts.set(host, Date.now() + VERIFIED_TTL_MS);
+  }
+}
+
+export interface GuardedLookupOptions {
+  /** Skip the address checks (default: `ALLOW_PRIVATE_NETWORK_FETCH`, read per lookup). */
+  allowPrivateNetwork?: boolean;
+  /** Injectable resolver, for tests. Defaults to `dns.lookup` with `all: true`. */
+  resolve?: HostLookup;
+}
+
+/**
+ * Connection-time guard: a drop-in `dns.lookup` for `net.connect` / `tls.connect` that resolves
+ * the host and fails with `BlockedUrlError` when ANY of its addresses is private or reserved.
+ * Because the socket connects to exactly the addresses returned here, a DNS answer that changes
+ * between `assertPublicUrl` and the connection (rebinding) is still caught.
+ */
+export function createGuardedLookup(options: GuardedLookupOptions = {}): LookupFunction {
+  const resolve = options.resolve ?? defaultLookup;
+  return (hostname, lookupOptions, callback) => {
+    const opts = typeof lookupOptions === 'object' && lookupOptions !== null ? lookupOptions : {};
+    const host = hostname.replace(/^\[|\]$/g, '').toLowerCase().replace(/\.+$/, '');
+    const allowed = options.allowPrivateNetwork ?? env.allowPrivateNetworkFetch;
+
+    const settle = async (): Promise<LookupAddress[]> => {
+      if (!allowed && isBlockedHostname(host)) throw blocked(host, 'it names a local or internal host');
+      const literal = isIP(host);
+      let addresses: LookupAddress[] = literal
+        ? [{ address: host, family: literal }]
+        : (await resolve(host)).map((entry) => ({ address: entry.address, family: isIP(entry.address) || 4 }));
+      if (opts.family === 4 || opts.family === 6) addresses = addresses.filter((entry) => entry.family === opts.family);
+      if (addresses.length === 0) {
+        throw Object.assign(new Error(`getaddrinfo ENOTFOUND ${host}`), { code: 'ENOTFOUND', hostname: host });
+      }
+      if (!allowed) {
+        const internal = addresses.find((entry) => isPrivateAddress(entry.address));
+        if (internal) throw blocked(host, `it resolves to the private or reserved address ${internal.address}`);
+      }
+      return addresses;
+    };
+
+    settle().then(
+      (addresses) => {
+        if (opts.all) callback(null, addresses);
+        else callback(null, addresses[0]!.address, addresses[0]!.family);
+      },
+      (err: NodeJS.ErrnoException) => callback(err, opts.all ? [] : '', undefined),
+    );
+  };
+}
+
+/** An undici `Agent` whose every connection goes through `createGuardedLookup`. */
+export function createGuardedAgent(options: GuardedLookupOptions = {}): Agent {
+  return new Agent({ connect: { lookup: createGuardedLookup(options) } });
+}
+
+let guardedAgent: Agent | undefined;
+let openAgent: Agent | undefined;
+
+export interface GuardedFetchOptions {
+  /** Skip the SSRF checks (default: `ALLOW_PRIVATE_NETWORK_FETCH`). */
+  allowPrivateNetwork?: boolean;
+  /** Dispatcher override, for tests (e.g. `createGuardedAgent({ resolve })`). */
+  dispatcher?: Agent;
+}
+
+/**
+ * `fetch` for user-supplied URLs, with the SSRF check enforced at connection time (see
+ * `createGuardedLookup`). Uses undici's own `fetch` with an undici `Agent` so the dispatcher and
+ * the fetch implementation always come from the same undici version, whatever Node bundles.
+ *
+ * IP-literal hosts never reach `lookup`, so they are checked here. Redirects must be handled by
+ * the caller (`redirect: 'manual'`) and each hop re-checked with `assertPublicUrl`.
+ */
+export async function guardedFetch(
+  input: string | URL,
+  init: RequestInit = {},
+  options: GuardedFetchOptions = {},
+): Promise<Response> {
+  const allowed = options.allowPrivateNetwork ?? env.allowPrivateNetworkFetch;
+  if (!allowed) {
+    const url = typeof input === 'string' ? new URL(input) : input;
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      throw new BlockedUrlError(`Refused to fetch ${url.protocol} URLs; only http and https are allowed.`);
+    }
+    const host = url.hostname.replace(/^\[|\]$/g, '').toLowerCase().replace(/\.+$/, '');
+    if (isBlockedHostname(host)) throw blocked(host, 'it names a local or internal host');
+    if (isIP(host) && isPrivateAddress(host)) throw blocked(host, 'it is a private or reserved address');
+    if (init.redirect !== 'manual' && init.redirect !== 'error') {
+      throw new TypeError("guardedFetch does not follow redirects: pass redirect: 'manual' and check every hop.");
+    }
+  }
+  const dispatcher =
+    options.dispatcher ??
+    (allowed ? (openAgent ??= new Agent()) : (guardedAgent ??= createGuardedAgent({ allowPrivateNetwork: false })));
+  try {
+    const response = await undiciFetch(input, { ...(init as UndiciRequestInit), dispatcher });
+    return response as unknown as Response;
+  } catch (err) {
+    // undici reports connect failures as `TypeError: fetch failed`; surface the guard's own error.
+    if (err instanceof Error && err.cause instanceof BlockedUrlError) throw err.cause;
+    throw err;
   }
 }

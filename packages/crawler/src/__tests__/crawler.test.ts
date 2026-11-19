@@ -11,6 +11,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { crawlSinglePage, crawlWebsite } from '../crawler';
 import type { CrawlProgress, SkipReason } from '../types';
 
+// These tests stub the network through global fetch; send the connection-time SSRF guard's
+// fetch there too (the guard itself is covered in packages/shared/src/__tests__/ssrf-rebinding.test.ts).
+vi.mock('@seo/shared/ssrf', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@seo/shared/ssrf')>()),
+  guardedFetch: (input: string | URL, init?: RequestInit) => globalThis.fetch(input, init),
+}));
+
 const ROBOTS = `User-agent: *
 Disallow: /private/
 Sitemap: https://example.com/sitemap.xml
