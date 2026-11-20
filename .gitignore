@@ -41,8 +41,30 @@ blob-report/
 packages/db/prisma/migrations/**/migration_lock.toml.bak
 /tmp/
 
-# Claude Code local config. Machine-specific, not shared.
-# A team-wide .claude/settings.json can still be committed if you ever want one.
-.claude/launch.json
-.claude/settings.local.json
-.claude/worktrees/
+# AI coding-agent files: local only, never part of the public repository.
+.claude/
+CLAUDE.md
+CLAUDE.local.md
+AGENTS.md
+.cursor/
+.cursorrules
+.aider*
+.windsurf/
+.codex/
+.gemini/
+
+# Promotional drafts and launch notes are kept locally.
+LAUNCH*.md
+LAUNCH_KIT*.md
+LAUNCH_POSTS*.md
+launch/
+docs/launch/
+
+# Machine-specific configs with absolute local paths.
+tsconfig.integrations-check.json
+
+# Local scratch output.
+.env.demo
+*.bak
+*.orig
+*.tmp
