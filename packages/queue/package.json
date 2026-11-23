@@ -12,7 +12,7 @@
   "dependencies": {
     "@seo/db": "*",
     "@seo/shared": "*",
-    "bullmq": "5.81.4",
+    "bullmq": "6.7.8",
     "ioredis": "5.11.1"
   },
   "sideEffects": false,
